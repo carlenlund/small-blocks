@@ -1,11 +1,10 @@
+var openSimplexNoise = require('open-simplex-noise');
+
 var Node = require('./node');
 var Layer = require('./layer');
 
 var values = {
-  'delete': {
-    color: '#ddd',
-  },
-  'inherit': {
+  'none': {
     color: '#000',
   },
   'red': {
@@ -25,14 +24,8 @@ var values = {
   },
 };
 
-var nodeWidth = 40;
-var nodeHeight = 40;
-var layerSize = 5;
-
-var player = {
-  size: 25,
-  layer: null,
-};
+var nodeWidth = 2;
+var nodeHeight = 400;
 
 var canvas = document.querySelector('#canvas');
 canvas.width = 800;
@@ -40,15 +33,36 @@ canvas.height = 600;
 
 var ctx = canvas.getContext('2d');
 
+var noise2d = openSimplexNoise.makeNoise2D(Date.now());
+
+var player = {
+  size: 25,
+  layer: null,
+};
+
 var layers = [];
 
-// Add origin layer.
+// Add start layer.
+var layerSize = 361;
 var layer0 = new Layer(layerSize);
-layer0.nodes[0].value = 'yellow';
-layer0.nodes[1].value = 'red';
-layer0.nodes[2].value = 'blue';
-layer0.nodes[3].value = 'blue';
-layer0.nodes[4].value = 'magenta';
+for (var i = 0; i < layerSize; ++i) {
+  layer0.nodes[i] = new Node('none');
+} 
+var colorNames = [
+  'magenta',
+  'blue',
+  'yellow',
+  'green',
+  'red',
+];
+for (var i = 0; i < layerSize; ++i) {
+  var noise = 0.8 * (noise2d(0.05 * i, 0) + 1) / 2;
+  noise += 0.4 * (noise2d(0.5 * i, 1) + 1) / 2;
+  noise -= 0.1;
+  noise = Math.min(0.9999999999, Math.max(0, noise));
+  var colorName = colorNames[Math.floor(noise * colorNames.length)];
+  layer0.nodes[i].value = colorName;
+}
 layer0.dirtyNegative = true;
 layer0.dirtyPositive = true;
 layers.push(layer0);
@@ -59,6 +73,8 @@ render();
 
 console.log('Q - Zoom out');
 console.log('E - Zoom in');
+console.log('F - Place block');
+console.log('G - Break block');
 window.addEventListener('keydown', function(event) {
   if (event.keyCode === 'Q'.charCodeAt(0)) {
     zoomOut();
@@ -66,24 +82,31 @@ window.addEventListener('keydown', function(event) {
   if (event.keyCode === 'E'.charCodeAt(0)) {
     zoomIn();
   }
+  if (event.keyCode === 'F'.charCodeAt(0)) {
+    placeBlock();
+  }
+  if (event.keyCode === 'G'.charCodeAt(0)) {
+    breakBlock();
+  }
 });
-
-for (var i = 1; i <= 3; ++i) {
-  setTimeout(function() {
-    var layer = layers[0].createNeighborLayer(-1);
-    layers.unshift(layer);
-
-    var layer = layers[layers.length - 1].createNeighborLayer(1);
-    layers.push(layer);
-
-    render();
-  }, i * 150);
-}
 
 function zoomOut() {
   if (!player.layer.parent) {
-    var layer = layers[0].createNeighborLayer(-1);
+    var layer = new Layer(layerSize);
+    for (var i = 0; i < layerSize; ++i) {
+      layer.nodes[i] = new Node('none');
+    } 
+    player.layer.parent = layer;
+    layer.child = player.layer;
+    layer.updateFromChildLayer(player.layer);
     layers.unshift(layer);
+  }
+  if (player.layer.dirtyNegative) {
+    var parent = player.layer.parent.parent;
+    var child = player.layer;
+    player.layer.parent.updateFromChildLayer(child);
+    player.layer.parent.parent = parent;
+    player.layer.parent.child = child;
   }
   player.layer = player.layer.parent;
   render();
@@ -91,10 +114,39 @@ function zoomOut() {
 
 function zoomIn() {
   if (!player.layer.child) {
-    var layer = layers[layers.length - 1].createNeighborLayer(1);
+    var layer = new Layer(layerSize);
+    for (var i = 0; i < layerSize; ++i) {
+      layer.nodes[i] = new Node('none');
+    } 
+    player.layer.child = layer;
+    layer.parent = player.layer;
+    layer.updateFromParentLayer(player.layer);
     layers.push(layer);
-  } 
+  }
+  if (player.layer.dirtyPositive) {
+    var parent = player.layer;
+    var child = player.layer.child.child;
+    player.layer.child.updateFromParentLayer(parent);
+    player.layer.child.parent = parent;
+    player.layer.child.child = child;
+  }
   player.layer = player.layer.child;
+  render();
+}
+
+function placeBlock() {
+  var layer = player.layer;
+  layer.nodes[Math.floor(layer.nodes.length / 2)].value = 'red';
+  layer.dirtyNegative = true;
+  layer.dirtyPositive = true;
+  render();
+}
+
+function breakBlock() {
+  var layer = player.layer;
+  layer.nodes[Math.floor(layer.nodes.length / 2)].value = 'none';
+  layer.dirtyNegative = true;
+  layer.dirtyPositive = true;
   render();
 }
 
@@ -107,32 +159,11 @@ function render() {
   var layerOffset = nodeHeight * 3;
   var centerIndex = Math.floor(layers.length / 2);
 
-  // for (var i = 0; i < layers.length; ++i) {
-  //   var layer = layers[i];
-  //   var layerY = canvasCenterY - centerIndex * layerOffset + i * layerOffset;
-  //   // var layerScale = Math.pow(2, centerIndex - i);
-  //   var layerScale = 1;
-  //   renderLayer(layer, layerY, layerScale);
-  // }
-
-  // for (var i = 0; i < layers.length; ++i) {
-  //   var layer = layers[i];
-  //   var layerY = canvasCenterY - centerIndex * layerOffset + i * layerOffset;
-  //   // var layerScale = Math.pow(2, centerIndex - i);
-  //   var layerScale = 1;
-  //   if (layer === player.layer) {
-  //     var playerX = canvasCenterX;
-  //     var playerY = layerY;
-  //     var playerSize = nodeHeight;
-  //     renderPlayer(playerX, playerY, playerSize);
-  //   }
-  // }
-
   var layer = player.layer;
-  var layerY = canvasCenterY - centerIndex;
+  var layerY = canvasCenterY;
   var layerScale = 1;
   renderLayer(layer, layerY, layerScale);
-
+  
   var playerX = canvasCenterX;
   var playerY = layerY - nodeHeight / 2;
   var playerSize = player.size;
@@ -165,7 +196,7 @@ function renderLayer(layer, y, scale) {
 function renderPlayer(x, y, size) {
   ctx.fillStyle = values['yellow'].color;
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 0.2 * size;
+  ctx.lineWidth = 0.15 * size;
   ctx.beginPath();
   ctx.arc(x, y - size / 2, size / 2, 0, 2 * Math.PI);
   ctx.fill();
