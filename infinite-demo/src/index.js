@@ -26,6 +26,7 @@ var values = {
 
 var nodeWidth = 2;
 var nodeHeight = 400;
+var layerSize = 361;
 
 var canvas = document.querySelector('#canvas');
 canvas.width = 800;
@@ -43,28 +44,11 @@ var player = {
 var layers = [];
 
 // Add start layer.
-var layerSize = 361;
 var layer0 = new Layer(layerSize);
 for (var i = 0; i < layerSize; ++i) {
   layer0.nodes[i] = new Node('none');
 } 
-var colorNames = [
-  'magenta',
-  'blue',
-  'yellow',
-  'green',
-  'red',
-];
-for (var i = 0; i < layerSize; ++i) {
-  var noise = 0.8 * (noise2d(0.05 * i, 0) + 1) / 2;
-  noise += 0.4 * (noise2d(0.5 * i, 1) + 1) / 2;
-  noise -= 0.1;
-  noise = Math.min(0.9999999999, Math.max(0, noise));
-  var colorName = colorNames[Math.floor(noise * colorNames.length)];
-  layer0.nodes[i].value = colorName;
-}
-layer0.dirtyNegative = true;
-layer0.dirtyPositive = true;
+generateWorld(layer0);
 layers.push(layer0);
 
 player.layer = layer0;
@@ -120,7 +104,16 @@ function zoomIn() {
     } 
     player.layer.child = layer;
     layer.parent = player.layer;
+    // if (layer.parent.parent &&
+    //     layer.parent.parent.parent &&
+    //     layer.parent.parent.parent.parent &&
+    //     layer.parent.parent.parent.parent.parent) {
+    //   generateWorld(layer);  // Temporary
+    //   player.layer.dirtyPositive = false;
+    // } else {
     layer.updateFromParentLayer(player.layer);
+    // }
+
     layers.push(layer);
   }
   if (player.layer.dirtyPositive) {
@@ -148,6 +141,27 @@ function breakBlock() {
   layer.dirtyNegative = true;
   layer.dirtyPositive = true;
   render();
+}
+
+function generateWorld(layer) {
+  var colorNames = [
+    'magenta',
+    'blue',
+    'yellow',
+    'green',
+    'red',
+  ];
+
+  for (var i = 0; i < layer.nodes.length; ++i) {
+    var noise = 0.8 * (noise2d(0.05 * i, 0) + 1) / 2;
+    noise += 0.4 * (noise2d(0.5 * i, 1) + 1) / 2;
+    noise -= 0.1;
+    noise = Math.min(0.9999999999, Math.max(0, noise));
+    var colorName = colorNames[Math.floor(noise * colorNames.length)];
+    layer.nodes[i].value = colorName;
+  }
+  layer.dirtyNegative = true;
+  layer.dirtyPositive = true;
 }
 
 function render() {

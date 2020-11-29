@@ -30,6 +30,7 @@ Layer.prototype.updateFromParentLayer = function(layer) {
     this.nodes[centerIndex + i].value =
         layer.nodes[centerIndex + Math.floor(i / 2)].value;
   }
+  // FIXME: This is only true for this single parent-child relationship.
   layer.dirtyPositive = false;
   this.dirtyPositive = true;
   this.dirtyNegative = false;
