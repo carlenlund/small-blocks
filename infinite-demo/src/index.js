@@ -249,10 +249,10 @@ function renderLayer(layer, y, scale) {
     } else {
       ctx.fillStyle = color;
     }
-    ctx.fillRect(x - nodeWidth / 2,
-                 y - nodeHeight / 2,
-                 nodeWidth * scale,
-                 nodeHeight);
+    ctx.fillRect(Math.floor(x - nodeWidth / 2),
+                 Math.floor(y - nodeHeight / 2),
+                 Math.floor(nodeWidth * scale),
+                 Math.floor(nodeHeight));
   }
 }
 
