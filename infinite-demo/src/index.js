@@ -1,4 +1,5 @@
 var Node = require('./node');
+var Layer = require('./layer');
 
 var values = {
   'delete': {
@@ -25,13 +26,12 @@ var values = {
 };
 
 var nodeWidth = 40;
-var nodeHeight = 20;
-var numExtraLayers = 3;
+var nodeHeight = 40;
 var layerSize = 5;
 
 var player = {
-  position: 0,
-  zoom: 0,
+  size: 25,
+  layer: null,
 };
 
 var canvas = document.querySelector('#canvas');
@@ -39,109 +39,114 @@ canvas.width = 800;
 canvas.height = 600;
 
 var ctx = canvas.getContext('2d');
-ctx.fillStyle = '#fff';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-var layer0 = createLayer(layerSize);
-layer0[0].value = 'yellow';
-layer0[1].value = 'red';
-layer0[2].value = 'blue';
-layer0[3].value = 'green';
-layer0[4].value = 'magenta';
+var layers = [];
 
-// Initialize layers from reference layer 0.
-var layers = new Array(1 + 2 * numExtraLayers);
-for (var i = 0; i < layers.length; ++i) {
-  layers[i] = createLayer(layerSize);
-}
+// Add origin layer.
+var layer0 = new Layer(layerSize);
+layer0.nodes[0].value = 'yellow';
+layer0.nodes[1].value = 'red';
+layer0.nodes[2].value = 'blue';
+layer0.nodes[3].value = 'blue';
+layer0.nodes[4].value = 'magenta';
+layer0.dirtyNegative = true;
+layer0.dirtyPositive = true;
+layers.push(layer0);
 
-updateLayers(layers, layer0, 0);
+player.layer = layer0;
 
 render();
 
-setTimeout(function() {
-  // Update layer 1.
-  var layer1 = layers[Math.floor(layers.length / 2) + 1];
-  var node0 = layer1[Math.floor(layer1.length / 2)];
-  node0.value = 'magenta';
-  updateLayers(layers, layer1, 1);
+console.log('Q - Zoom out');
+console.log('E - Zoom in');
+window.addEventListener('keydown', function(event) {
+  if (event.keyCode === 'Q'.charCodeAt(0)) {
+    zoomOut();
+  }
+  if (event.keyCode === 'E'.charCodeAt(0)) {
+    zoomIn();
+  }
+});
+
+for (var i = 1; i <= 3; ++i) {
+  setTimeout(function() {
+    var layer = layers[0].createNeighborLayer(-1);
+    layers.unshift(layer);
+
+    var layer = layers[layers.length - 1].createNeighborLayer(1);
+    layers.push(layer);
+
+    render();
+  }, i * 150);
+}
+
+function zoomOut() {
+  if (!player.layer.parent) {
+    var layer = layers[0].createNeighborLayer(-1);
+    layers.unshift(layer);
+  }
+  player.layer = player.layer.parent;
   render();
-}, 1000);
-
-function queryLayer(layers, currentLayer, offset) {
-  // if (offset === 0) {
-  //   return;
-  // }
-  // 
-  // var layer = layers[Math.floor(layers.length / 2) + offset];
-  // var centerIndex = Math.floor(layer.length / 2);
-  // 
-  // if (offset <= -2) {
-  //   for (var i = 0; i < layer.length - 1; i += 2) {
-  //     if (currentLayer[i].value === currentLayer[i + 1].value) {
-  //       layer[i].value = currentLayer[i].value;
-  //     }
-  //   }
-  //   ++offset;
-  //   queryLayer(layers, currentLayer, offset) {
-  // } else if (offset === -1) {
-  //   layer[centerIndex].value = currentLayer[centerIndex].value;
-  //   for (var i = 1; i <= centerIndex; ++i) {
-  //     if (i <= Math.floor(centerIndex / 2)) {
-  //       layer[centerIndex - i].value = currentLayer[centerIndex - i * 2].value;
-  //       layer[centerIndex + i].value = currentLayer[centerIndex + i * 2].value;
-  //     }
-  //   }
-  // } else if (offset > 0) {
-  //   layer[centerIndex].value = currentLayer[centerIndex].value;
-  //   for (var i = 1; i <= centerIndex; ++i) {
-  //     layer[centerIndex - i].value = currentLayer[Math.floor(centerIndex - i / Math.pow(2, offset))].value;
-  //     layer[centerIndex + i].value = currentLayer[Math.floor(centerIndex + i / Math.pow(2, offset))].value;
-  //   }
-  // }
 }
 
-function updateLayers(layers, layer, offset) {
-  var centerIndex = Math.floor(layers.length / 2) + offset;
-  layers[centerIndex] = layer;
-  // for (var i = -1 + offset; i >= -numExtraLayers; --i) {
-  //   queryLayer(layers, layers[centerIndex + i + 1], i);
-  // }
-  // for (var i = 1 + offset; i <= numExtraLayers; ++i) {
-  //   queryLayer(layers, layers[centerIndex + i - 1], i);
-  // }
-  queryLayer(layers, layers[centerIndex + i + 1], i);
-  queryLayer(layers, layers[centerIndex + i - 1], i);
-}
-
-function createLayer(size) {
-  var layer = new Array(size)
-  for (var i = 0; i < size; ++i) {
-    layer[i] = new Node('inherit');
+function zoomIn() {
+  if (!player.layer.child) {
+    var layer = layers[layers.length - 1].createNeighborLayer(1);
+    layers.push(layer);
   } 
-  return layer;
+  player.layer = player.layer.child;
+  render();
 }
 
 function render() {
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  var canvasCenterX = canvas.width / 2;
   var canvasCenterY = canvas.height / 2;
-  var layerOffset = nodeHeight * 2.4;
+  var layerOffset = nodeHeight * 3;
   var centerIndex = Math.floor(layers.length / 2);
 
-  for (var i = 0; i < layers.length; ++i) {
-    var y = canvasCenterY - centerIndex * layerOffset + i * layerOffset;
-    var scale = Math.pow(2, centerIndex - i);
-    renderLayer(layers[i], y, scale);
-  }
+  // for (var i = 0; i < layers.length; ++i) {
+  //   var layer = layers[i];
+  //   var layerY = canvasCenterY - centerIndex * layerOffset + i * layerOffset;
+  //   // var layerScale = Math.pow(2, centerIndex - i);
+  //   var layerScale = 1;
+  //   renderLayer(layer, layerY, layerScale);
+  // }
+
+  // for (var i = 0; i < layers.length; ++i) {
+  //   var layer = layers[i];
+  //   var layerY = canvasCenterY - centerIndex * layerOffset + i * layerOffset;
+  //   // var layerScale = Math.pow(2, centerIndex - i);
+  //   var layerScale = 1;
+  //   if (layer === player.layer) {
+  //     var playerX = canvasCenterX;
+  //     var playerY = layerY;
+  //     var playerSize = nodeHeight;
+  //     renderPlayer(playerX, playerY, playerSize);
+  //   }
+  // }
+
+  var layer = player.layer;
+  var layerY = canvasCenterY - centerIndex;
+  var layerScale = 1;
+  renderLayer(layer, layerY, layerScale);
+
+  var playerX = canvasCenterX;
+  var playerY = layerY - nodeHeight / 2;
+  var playerSize = player.size;
+  renderPlayer(playerX, playerY, playerSize);
 } 
 
 function renderLayer(layer, y, scale) {
   var canvasCenterX = canvas.width / 2;
 
-  var centerIndex = Math.floor(layer.length / 2);
+  var centerIndex = Math.floor(layer.nodes.length / 2);
   var renderDistance = centerIndex;
 
-  for (var i = 0; i < layer.length; ++i) {
-    var node = layer[i];
+  for (var i = 0; i < layer.nodes.length; ++i) {
+    var node = layer.nodes[i];
     var x = canvasCenterX - renderDistance * nodeWidth * scale + i * nodeWidth * scale;
     var value = values[node.value];
     var color = value.color;
@@ -155,4 +160,14 @@ function renderLayer(layer, y, scale) {
                  nodeWidth * scale,
                  nodeHeight);
   }
+}
+
+function renderPlayer(x, y, size) {
+  ctx.fillStyle = values['yellow'].color;
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 0.2 * size;
+  ctx.beginPath();
+  ctx.arc(x, y - size / 2, size / 2, 0, 2 * Math.PI);
+  ctx.fill();
+  ctx.stroke();
 }
