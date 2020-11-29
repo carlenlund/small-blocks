@@ -24,9 +24,10 @@ var values = {
   },
 };
 
-var nodeWidth = 2;
+var nodeWidth = 20;
 var nodeHeight = 400;
-var layerSize = 361;
+var layerSize = 33;
+var playerSize = 16;
 
 var canvas = document.querySelector('#canvas');
 canvas.width = 800;
@@ -37,8 +38,10 @@ var ctx = canvas.getContext('2d');
 var noise2d = openSimplexNoise.makeNoise2D(Date.now());
 
 var player = {
-  size: 25,
+  size: playerSize,
   layer: null,
+  zoom: 0,
+  x: 0,
 };
 
 var layers = [];
@@ -47,19 +50,27 @@ var layers = [];
 var layer0 = new Layer(layerSize);
 for (var i = 0; i < layerSize; ++i) {
   layer0.nodes[i] = new Node('none');
-} 
-generateWorld(layer0);
+}
+generateWorld(layer0, player.zoom, player.x);
 layers.push(layer0);
 
 player.layer = layer0;
 
 render();
 
+console.log('A - Move left');
+console.log('D - Move right');
 console.log('Q - Zoom out');
 console.log('E - Zoom in');
 console.log('F - Place block');
 console.log('G - Break block');
 window.addEventListener('keydown', function(event) {
+  if (event.keyCode === 'A'.charCodeAt(0)) {
+    moveLeft();
+  }
+  if (event.keyCode === 'D'.charCodeAt(0)) {
+    moveRight();
+  }
   if (event.keyCode === 'Q'.charCodeAt(0)) {
     zoomOut();
   }
@@ -74,12 +85,34 @@ window.addEventListener('keydown', function(event) {
   }
 });
 
+function moveLeft() {
+  --player.x;
+  player.x = Math.ceil(player.x);
+
+  loadSiblingLayers();
+
+  render();
+}
+
+function moveRight() {
+  ++player.x;
+  player.x = Math.floor(player.x);
+
+  loadSiblingLayers();
+
+  render();
+}
+
 function zoomOut() {
+  --player.zoom;
+  player.x = player.x / 2;
+
   if (!player.layer.parent) {
     var layer = new Layer(layerSize);
     for (var i = 0; i < layerSize; ++i) {
       layer.nodes[i] = new Node('none');
-    } 
+    }
+    generateWorld(layer, player.zoom, player.x);
     player.layer.parent = layer;
     layer.child = player.layer;
     layer.updateFromChildLayer(player.layer);
@@ -93,26 +126,24 @@ function zoomOut() {
     player.layer.parent.child = child;
   }
   player.layer = player.layer.parent;
+
+  loadSiblingLayers();
+
   render();
 }
 
 function zoomIn() {
+  ++player.zoom;
+  player.x *= 2;
+
   if (!player.layer.child) {
     var layer = new Layer(layerSize);
     for (var i = 0; i < layerSize; ++i) {
       layer.nodes[i] = new Node('none');
-    } 
+    }
     player.layer.child = layer;
     layer.parent = player.layer;
-    // if (layer.parent.parent &&
-    //     layer.parent.parent.parent &&
-    //     layer.parent.parent.parent.parent &&
-    //     layer.parent.parent.parent.parent.parent) {
-    //   generateWorld(layer);  // Temporary
-    //   player.layer.dirtyPositive = false;
-    // } else {
     layer.updateFromParentLayer(player.layer);
-    // }
 
     layers.push(layer);
   }
@@ -124,12 +155,15 @@ function zoomIn() {
     player.layer.child.child = child;
   }
   player.layer = player.layer.child;
+
+  loadSiblingLayers();
+
   render();
 }
 
 function placeBlock() {
   var layer = player.layer;
-  layer.nodes[Math.floor(layer.nodes.length / 2)].value = 'red';
+  layer.nodes[Math.floor(layer.nodes.length / 2 + player.x)].value = 'red';
   layer.dirtyNegative = true;
   layer.dirtyPositive = true;
   render();
@@ -137,13 +171,22 @@ function placeBlock() {
 
 function breakBlock() {
   var layer = player.layer;
-  layer.nodes[Math.floor(layer.nodes.length / 2)].value = 'none';
+  layer.nodes[Math.floor(layer.nodes.length / 2 + player.x)].value = 'none';
   layer.dirtyNegative = true;
   layer.dirtyPositive = true;
   render();
 }
 
-function generateWorld(layer) {
+function loadSiblingLayers() {
+  if (player.x < -Math.floor(layerSize / 2)) {
+    console.log('load sibling layer to the left');
+  }
+  if (player.x > Math.floor(layerSize / 2)) {
+    console.log('load sibling layer to the right');
+  }
+}
+
+function generateWorld(layer, zoom, x) {
   var colorNames = [
     'magenta',
     'blue',
@@ -152,9 +195,12 @@ function generateWorld(layer) {
     'red',
   ];
 
+  var chunkX = x;
+
   for (var i = 0; i < layer.nodes.length; ++i) {
-    var noise = 0.8 * (noise2d(0.05 * i, 0) + 1) / 2;
-    noise += 0.4 * (noise2d(0.5 * i, 1) + 1) / 2;
+    var noise = 0;
+    noise += 0.8 * (noise2d(0.05 * i * Math.pow(2, zoom), 0) + 1) / 2;
+    noise += 0.4 * (noise2d(0.5 * i * Math.pow(2, zoom), 1) + 1) / 2;
     noise -= 0.1;
     noise = Math.min(0.9999999999, Math.max(0, noise));
     var colorName = colorNames[Math.floor(noise * colorNames.length)];
@@ -177,12 +223,12 @@ function render() {
   var layerY = canvasCenterY;
   var layerScale = 1;
   renderLayer(layer, layerY, layerScale);
-  
+
   var playerX = canvasCenterX;
   var playerY = layerY - nodeHeight / 2;
   var playerSize = player.size;
   renderPlayer(playerX, playerY, playerSize);
-} 
+}
 
 function renderLayer(layer, y, scale) {
   var canvasCenterX = canvas.width / 2;
@@ -192,7 +238,10 @@ function renderLayer(layer, y, scale) {
 
   for (var i = 0; i < layer.nodes.length; ++i) {
     var node = layer.nodes[i];
-    var x = canvasCenterX - renderDistance * nodeWidth * scale + i * nodeWidth * scale;
+    var x = canvasCenterX
+        - renderDistance * nodeWidth * scale
+        + i * nodeWidth * scale
+        - player.x * nodeWidth;
     var value = values[node.value];
     var color = value.color;
     if (color === null) {
