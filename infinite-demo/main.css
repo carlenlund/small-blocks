@@ -1,0 +1,28 @@
+* {
+  box-sizing: border-box;
+  font: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: #ddd;
+  color: #000;
+  font-family: sans-serif;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.container {
+  padding: 0 15px;
+}
+
+.main {
+  padding: 30px 0;
+}
+
+#canvas {
+  background: #fff;
+  display: block;
+  margin: 0 auto;
+}
