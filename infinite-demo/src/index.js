@@ -180,8 +180,9 @@ function breakBlock() {
 function loadSiblingLayers() {
   if (player.x < -Math.floor(layerSize / 2)) {
     console.log('load sibling layer to the left');
-  }
-  if (player.x > Math.floor(layerSize / 2)) {
+
+
+  } else if (player.x > Math.floor(layerSize / 2)) {
     console.log('load sibling layer to the right');
   }
 }
@@ -195,12 +196,12 @@ function generateWorld(layer, zoom, x) {
     'red',
   ];
 
-  var chunkX = x;
+  var chunkX = Math.floor((x - layerSize / 2) / layerSize);
 
   for (var i = 0; i < layer.nodes.length; ++i) {
     var noise = 0;
-    noise += 0.8 * (noise2d(0.05 * i * Math.pow(2, zoom), 0) + 1) / 2;
-    noise += 0.4 * (noise2d(0.5 * i * Math.pow(2, zoom), 1) + 1) / 2;
+    noise += 0.8 * (noise2d(0.05 * (i + chunkX * layerSize) * Math.pow(2, zoom), 0) + 1) / 2;
+    noise += 0.4 * (noise2d(0.5 * (i + chunkX * layerSize) * Math.pow(2, zoom), 1) + 1) / 2;
     noise -= 0.1;
     noise = Math.min(0.9999999999, Math.max(0, noise));
     var colorName = colorNames[Math.floor(noise * colorNames.length)];
