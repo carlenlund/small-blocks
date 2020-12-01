@@ -2,6 +2,7 @@ var openSimplexNoise = require('open-simplex-noise');
 
 var Node = require('./node');
 var Layer = require('./layer');
+var utils = require('./utils');
 
 var values = {
   'none': {
@@ -24,9 +25,9 @@ var values = {
   },
 };
 
-var nodeWidth = 20;
+var nodeWidth = 4;
 var nodeHeight = 400;
-var layerSize = 33;
+var layerSize = 151;
 var playerSize = 16;
 
 var canvas = document.querySelector('#canvas');
@@ -43,27 +44,21 @@ var player = {
   zoom: 0,
   x: 0,
 };
+window.player = player;  // For debugging
 
 var layers = [];
 
-// Add start layer.
-var layer0 = new Layer(layerSize);
+// Initialize world.
+var layer = new Layer(layerSize);
 for (var i = 0; i < layerSize; ++i) {
-  layer0.nodes[i] = new Node('none');
+  layer.nodes[i] = new Node('none');
 }
-generateWorld(layer0, player.zoom, player.x);
-layers.push(layer0);
-
-player.layer = layer0;
+layers.push(layer);
+player.layer = layer;
+loadWorld();
 
 render();
 
-console.log('A - Move left');
-console.log('D - Move right');
-console.log('Q - Zoom out');
-console.log('E - Zoom in');
-console.log('F - Place block');
-console.log('G - Break block');
 window.addEventListener('keydown', function(event) {
   if (event.keyCode === 'A'.charCodeAt(0)) {
     moveLeft();
@@ -85,11 +80,18 @@ window.addEventListener('keydown', function(event) {
   }
 });
 
+function getChunkPosition(x) {
+  return Math.floor((x + layerSize / 2) / layerSize);
+}
+
 function moveLeft() {
   --player.x;
   player.x = Math.ceil(player.x);
 
-  loadSiblingLayers();
+  var x = utils.modulo(player.x + 1 + layerSize / 2, layerSize) - layerSize / 2 - 1;
+  if (x < -Math.floor(layerSize / 2)) {
+    loadWorld();
+  }
 
   render();
 }
@@ -98,7 +100,10 @@ function moveRight() {
   ++player.x;
   player.x = Math.floor(player.x);
 
-  loadSiblingLayers();
+  var x = utils.modulo(player.x - 1 + layerSize / 2, layerSize) - layerSize / 2 + 1;
+  if (x > Math.floor(layerSize / 2)) {
+    loadWorld();
+  }
 
   render();
 }
@@ -127,7 +132,7 @@ function zoomOut() {
   }
   player.layer = player.layer.parent;
 
-  loadSiblingLayers();
+  loadWorld();
 
   render();
 }
@@ -156,14 +161,15 @@ function zoomIn() {
   }
   player.layer = player.layer.child;
 
-  loadSiblingLayers();
+  loadWorld();
 
   render();
 }
 
 function placeBlock() {
   var layer = player.layer;
-  layer.nodes[Math.floor(layer.nodes.length / 2 + player.x)].value = 'red';
+  var playerX = utils.modulo(player.x + layerSize / 2, layerSize) - layerSize / 2;
+  layer.nodes[Math.floor(layer.nodes.length / 2 + playerX)].value = 'red';
   layer.dirtyNegative = true;
   layer.dirtyPositive = true;
   render();
@@ -171,20 +177,19 @@ function placeBlock() {
 
 function breakBlock() {
   var layer = player.layer;
-  layer.nodes[Math.floor(layer.nodes.length / 2 + player.x)].value = 'none';
+  var playerX = utils.modulo(player.x + layerSize / 2, layerSize) - layerSize / 2;
+  layer.nodes[Math.floor(layer.nodes.length / 2 + playerX)].value = 'none';
   layer.dirtyNegative = true;
   layer.dirtyPositive = true;
   render();
 }
 
-function loadSiblingLayers() {
-  if (player.x < -Math.floor(layerSize / 2)) {
-    console.log('load sibling layer to the left');
-
-
-  } else if (player.x > Math.floor(layerSize / 2)) {
-    console.log('load sibling layer to the right');
+function loadWorld() {
+  var layer = player.layer;
+  for (var i = 0; i < layerSize; ++i) {
+    layer.nodes[i] = new Node('none');
   }
+  generateWorld(layer, player.zoom, player.x);
 }
 
 function generateWorld(layer, zoom, x) {
@@ -196,12 +201,12 @@ function generateWorld(layer, zoom, x) {
     'red',
   ];
 
-  var chunkX = Math.floor((x - layerSize / 2) / layerSize);
+  var chunkX = getChunkPosition(x);
 
   for (var i = 0; i < layer.nodes.length; ++i) {
     var noise = 0;
-    noise += 0.8 * (noise2d(0.05 * (i + chunkX * layerSize) * Math.pow(2, zoom), 0) + 1) / 2;
-    noise += 0.4 * (noise2d(0.5 * (i + chunkX * layerSize) * Math.pow(2, zoom), 1) + 1) / 2;
+    noise += 0.8 * (noise2d(0.05 * (i - Math.floor(layerSize / 2) + chunkX * layerSize) * Math.pow(2, -zoom), 0) + 1) / 2;
+    noise += 0.4 * (noise2d(0.5 * (i - Math.floor(layerSize / 2) + chunkX * layerSize) * Math.pow(2, -zoom), 1) + 1) / 2;
     noise -= 0.1;
     noise = Math.min(0.9999999999, Math.max(0, noise));
     var colorName = colorNames[Math.floor(noise * colorNames.length)];
@@ -223,7 +228,7 @@ function render() {
   var layer = player.layer;
   var layerY = canvasCenterY;
   var layerScale = 1;
-  renderLayer(layer, layerY, layerScale);
+  renderLayer(layer, layerY, layerScale, player.x);
 
   var playerX = canvasCenterX;
   var playerY = layerY - nodeHeight / 2;
@@ -231,9 +236,9 @@ function render() {
   renderPlayer(playerX, playerY, playerSize);
 }
 
-function renderLayer(layer, y, scale) {
+function renderLayer(layer, y, scale, playerX) {
+  playerX = utils.modulo(playerX + layerSize / 2, layerSize) - layerSize / 2;
   var canvasCenterX = canvas.width / 2;
-
   var centerIndex = Math.floor(layer.nodes.length / 2);
   var renderDistance = centerIndex;
 
@@ -242,7 +247,7 @@ function renderLayer(layer, y, scale) {
     var x = canvasCenterX
         - renderDistance * nodeWidth * scale
         + i * nodeWidth * scale
-        - player.x * nodeWidth;
+        - playerX * nodeWidth;
     var value = values[node.value];
     var color = value.color;
     if (color === null) {
