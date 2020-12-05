@@ -15,6 +15,9 @@ function Player() {
   this.speed = 1;
   this.chunk = null;
   this.x = 0;
+
+  this.chunkX = 0;
+  this.zoom = 0;
 }
 
 function initialize() {
@@ -88,8 +91,6 @@ function zoomOut() {
     chunk.children[player.chunk.oneHot ? 1 : 0] = player.chunk;
   }
 
-  console.log(chunk);
-
   if (player.chunk.dirtyNegative) {
     if (player.chunk.oneHot) {
       chunk.sample(player.chunk,
@@ -108,6 +109,9 @@ function zoomOut() {
   player.chunk = chunk;
 
   checkPlayerOutOfBounds();
+
+  --player.zoom;
+  player.chunkX /= 2;
 }
 
 function zoomIn() {
@@ -137,12 +141,23 @@ function zoomIn() {
   player.chunk = chunk;
 
   checkPlayerOutOfBounds();
+
+  ++player.zoom;
+  player.chunkX *= 2;
 }
 
 function placeBlock() {
+  var chunk = player.chunk;
+  chunk.blocks[Math.round(player.x)] = 1;
+  chunk.dirtyNegative = true;
+  chunk.dirtyPositive = true;
 }
 
 function breakBlock() {
+  var chunk = player.chunk;
+  chunk.blocks[Math.round(player.x)] = 0;
+  chunk.dirtyNegative = true;
+  chunk.dirtyPositive = true;
 }
 
 function checkPlayerOutOfBounds() {
@@ -159,6 +174,8 @@ function checkPlayerOutOfBounds() {
     player.chunk = player.chunk.neighbors[0];
 
     player.x += Chunk.WIDTH;
+
+    --player.chunkX;
   }
 
   while (player.x >= Chunk.WIDTH) {
@@ -174,6 +191,8 @@ function checkPlayerOutOfBounds() {
     player.chunk = player.chunk.neighbors[1];
 
     player.x -= Chunk.WIDTH;
+
+    ++player.chunkX;
   }
 }
 
@@ -185,6 +204,8 @@ function render() {
   renderChunk(player.chunk, canvas.width / 2, 1, scale);
 
   renderPlayer(player, scale);
+
+  console.log('X: ' + player.x + ', ChunkX: ' + player.chunkX + ', Zoom: ' + player.zoom);
 }
 
 function renderChunk(chunk, x, depth, scale) {
@@ -233,9 +254,10 @@ function renderPlayer(player, scale) {
 }
 
 function generateBlocks(chunk) {
+  // TODO: This should take into account the current zoom level.
   for (var i = 0; i < chunk.blocks.length; ++i) {
     if (chunk.oneHot) {
-      chunk.blocks[i] = Math.floor(i / 2) % 2 === 0 ? 1 : 0;
+      chunk.blocks[i] = i % 3 === 0 ? 1 : 0;
     } else {
       chunk.blocks[i] = i % 2 === 0 ? 1 : 0;
     }
