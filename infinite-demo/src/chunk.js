@@ -26,8 +26,8 @@ Chunk.WIDTH = 16;
 // start, sampleStart either 0 or Chunk.WIDTH / 2
 // end, sampleEnd either Chunk.WIDTH / 2 or Chunk.WIDTH
 Chunk.prototype.sample = function(chunk, sampleStart, sampleEnd, start, end) {
-  utils.sampleNearestNeighbor(chunk.blocks, sampleStart, sampleEnd,
-                              this.blocks, start, end);
+  utils.sampleNearestNeighbor2(chunk.blocks, sampleStart, sampleEnd,
+                               this.blocks, start, end);
 };
 
 module.exports = Chunk;
