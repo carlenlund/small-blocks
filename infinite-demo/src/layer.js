@@ -8,6 +8,7 @@ function Layer(size) {
   this.dirtyPositive = false;
 }
 
+// Sample from child layer.
 Layer.prototype.updateFromChildLayer = function(layer) {
   var centerIndex = Math.floor(this.nodes.length / 2);
   for (var i = 1; i <= centerIndex; ++i) {
@@ -21,6 +22,7 @@ Layer.prototype.updateFromChildLayer = function(layer) {
   this.dirtyPositive = false;
 };
 
+// Sample from parent layer.
 Layer.prototype.updateFromParentLayer = function(layer) {
   var centerIndex = Math.floor(this.nodes.length / 2);
   this.nodes[centerIndex].value = layer.nodes[centerIndex].value;
