@@ -19,8 +19,7 @@ function Chunk() {
   this.oneHot = false;
 }
 
-// Chunk.WIDTH = 8;
-Chunk.WIDTH = 2;
+Chunk.WIDTH = 8;
 
 Chunk.prototype.setBlock = function(x, block) {
   if (x < 0 || x >= Chunk.WIDTH) {
@@ -40,11 +39,52 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   if (isParent &&
       ((childOneHot && index === 0) ||
        (!childOneHot && index === 1))) {
-    console.log('child of same parent');
+    if (this.parent) {
+      // Resample from parent in case blocks have changed in the parent.
+      // TODO: Should sample from children as well, but prioritize parent.
+      if (this.oneHot) {
+        this.sampleDirtyPositive(this.parent,
+                                 Chunk.WIDTH / 2, Chunk.WIDTH,
+                                 0, Chunk.WIDTH);
+      } else {
+        this.sampleDirtyPositive(this.parent,
+                                 0, Chunk.WIDTH / 2,
+                                 0, Chunk.WIDTH);
+      }
+      this.setDirtyNegative(0, Chunk.WIDTH, false);
+      if (this.oneHot) {
+        this.parent.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
+      } else {
+        this.parent.setDirtyPositive(0, Chunk.WIDTH / 2, false);
+      }
+    }
+
     return this;
   }
   if (this.neighbors[index]) {
-    return this.neighbors[index];
+    var neighbor = this.neighbors[index];
+
+    if (neighbor.parent) {
+      // Resample from parent in case blocks have changed in the parent.
+      // TODO: Should sample from children as well, but prioritize parent.
+      if (neighbor.oneHot) {
+        neighbor.sampleDirtyPositive(neighbor.parent,
+                                     Chunk.WIDTH / 2, Chunk.WIDTH,
+                                     0, Chunk.WIDTH);
+      } else {
+        neighbor.sampleDirtyPositive(neighbor.parent,
+                                     0, Chunk.WIDTH / 2,
+                                     0, Chunk.WIDTH);
+      }
+      neighbor.setDirtyNegative(0, Chunk.WIDTH, false);
+      if (neighbor.oneHot) {
+        neighbor.parent.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
+      } else {
+        neighbor.parent.setDirtyPositive(0, Chunk.WIDTH / 2, false);
+      }
+    }
+
+    return neighbor;
   }
   if (!this.parent) {
     return null;
@@ -75,6 +115,7 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   }
 
   // Resample from parent in case blocks have changed in the parent.
+  // TODO: Should sample from children as well, but prioritize parent.
   if (parentNeighborChild.oneHot) {
     parentNeighborChild.sampleDirtyPositive(parentNeighbor,
                                             Chunk.WIDTH / 2, Chunk.WIDTH,

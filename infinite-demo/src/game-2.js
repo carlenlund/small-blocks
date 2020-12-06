@@ -213,12 +213,7 @@ Game.prototype.checkPlayerOutOfBounds = function() {
     this.player.x -= Chunk.WIDTH;
   }
 
-  console.log('Before', this);
-  setTimeout(function() {
-    console.log('After', this);
-
-  }.bind(this), 100);
-  // this.enforceRenderDistance(this.player.chunk, this.renderDistance);
+  this.enforceRenderDistance(this.player.chunk, this.renderDistance);
 };
 
 Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {

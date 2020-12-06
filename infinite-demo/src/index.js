@@ -12,6 +12,3 @@ var game = new Game(window, canvas, ctx);
 game.run();
 
 window.game = game;  // For debugging
-
-game.player.x = 0;
-game.render();
