@@ -1,6 +1,7 @@
 var assert = require('assert');
 var Game = require('../src/game-2');
 var Chunk = require('../src/chunk');
+var Chunk2 = require('../src/chunk2');
 
 describe('Game', function() {
   describe('World', function() {
