@@ -19,7 +19,8 @@ function Chunk() {
   this.oneHot = false;
 }
 
-Chunk.WIDTH = 8;
+// Chunk.WIDTH = 8;
+Chunk.WIDTH = 2;
 
 Chunk.prototype.setBlock = function(x, block) {
   if (x < 0 || x >= Chunk.WIDTH) {
@@ -33,9 +34,13 @@ Chunk.prototype.setBlock = function(x, block) {
 // FIXME: Assumes that the neighbor can be found by searching via parent nodes.
 // It might as well be found by traversing child nodes.
 Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
+  isParent = typeof(isParent) === 'undefined' ? false : isParent;
+  childOneHot = typeof(childOneHot) === 'undefined' ? false : childOneHot;
+
   if (isParent &&
       ((childOneHot && index === 0) ||
        (!childOneHot && index === 1))) {
+    console.log('child of same parent');
     return this;
   }
   if (this.neighbors[index]) {
@@ -51,38 +56,39 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   }
 
   var parentNeighborChildIndex;
-  var parentNeighborChild;
   if ((this.oneHot && index === 0) ||
       (!this.oneHot && index === 1)) {
     // Use same index, since we have the same parent as the target chunk.
     parentNeighborChildIndex = index;
-    parentNeighbor.children[parentNeighborChildIndex];
   } else {
     // Use index in opposite direction to move towards target chunk.
     parentNeighborChildIndex = index === 0 ? 1 : 0;
-    parentNeighborChild = parentNeighbor.children[parentNeighborChildIndex];
   }
+
+  var parentNeighborChild = parentNeighbor.children[parentNeighborChildIndex];
 
   if (!parentNeighborChild) {
     parentNeighborChild = new Chunk();
     parentNeighborChild.oneHot = parentNeighborChildIndex === 1;
     parentNeighbor.children[parentNeighborChildIndex] = parentNeighborChild;
     parentNeighborChild.parent = parentNeighbor;
-    if (parentNeighborChild.oneHot) {
-      parentNeighborChild.sampleDirtyPositive(parentNeighbor,
-                                              Chunk.WIDTH / 2, Chunk.WIDTH,
-                                              0, Chunk.WIDTH);
-    } else {
-      parentNeighborChild.sampleDirtyPositive(parentNeighbor,
-                                              0, Chunk.WIDTH / 2,
-                                              0, Chunk.WIDTH);
-    }
-    parentNeighborChild.setDirtyNegative(0, Chunk.WIDTH, false);
-    if (parentNeighborChild.oneHot) {
-      parentNeighbor.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
-    } else {
-      parentNeighbor.setDirtyPositive(0, Chunk.WIDTH / 2, false);
-    }
+  }
+
+  // Resample from parent in case blocks have changed in the parent.
+  if (parentNeighborChild.oneHot) {
+    parentNeighborChild.sampleDirtyPositive(parentNeighbor,
+                                            Chunk.WIDTH / 2, Chunk.WIDTH,
+                                            0, Chunk.WIDTH);
+  } else {
+    parentNeighborChild.sampleDirtyPositive(parentNeighbor,
+                                            0, Chunk.WIDTH / 2,
+                                            0, Chunk.WIDTH);
+  }
+  parentNeighborChild.setDirtyNegative(0, Chunk.WIDTH, false);
+  if (parentNeighborChild.oneHot) {
+    parentNeighbor.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
+  } else {
+    parentNeighbor.setDirtyPositive(0, Chunk.WIDTH / 2, false);
   }
 
   if (index === 0) {

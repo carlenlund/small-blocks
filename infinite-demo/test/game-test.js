@@ -4,10 +4,13 @@ var Chunk = require('../src/chunk');
 var Chunk2 = require('../src/chunk2');
 
 describe('Game', function() {
+  beforeEach(function() {
+    this.game = new Game(null, null, null);
+  });
+
   describe('World', function() {
     describe('U-turn', function() {
       beforeEach(function() {
-        this.game = new Game(null, null, null);
         this.chunk1 = this.game.player.chunk;
         for (var x = 0; x < Chunk.WIDTH; ++x) {
           this.game.setBlock(x, 3);
@@ -82,6 +85,33 @@ describe('Game', function() {
           }
           assert.deepEqual(chunk2.blocks, blocks);
         });
+      });
+    });
+
+    describe('Zoom in-out building bug', function() {
+      it('', function() {
+        this.game.player.x = 0;
+        for (var i = 0; i < 4; ++i) {
+          this.game.zoomIn();
+        }
+        for (var i = 0; i < 4; ++i) {
+          this.game.zoomOut();
+        }
+        this.game.setBlock(this.game.player.x, 3);
+
+        for (var i = 0; i < 3; ++i) {
+          this.game.zoomIn();
+        }
+        this.game.player.x = Chunk.WIDTH / 2;
+        this.game.breakBlock();
+        this.game.zoomIn();
+
+        var leftChunk = this.game.player.chunk.lookUpNeighbor(0);
+        var blocks = [];
+        for (var x = 0; x < Chunk.WIDTH; ++x) {
+          blocks.push(3);
+        }
+        assert.deepEqual(leftChunk.blocks, blocks);
       });
     });
   });

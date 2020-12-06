@@ -213,7 +213,12 @@ Game.prototype.checkPlayerOutOfBounds = function() {
     this.player.x -= Chunk.WIDTH;
   }
 
-  this.enforceRenderDistance(this.player.chunk, this.renderDistance);
+  console.log('Before', this);
+  setTimeout(function() {
+    console.log('After', this);
+
+  }.bind(this), 100);
+  // this.enforceRenderDistance(this.player.chunk, this.renderDistance);
 };
 
 Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {
@@ -249,8 +254,8 @@ Game.prototype.render = function() {
 
   this.ctx.restore();
 
-  console.log('X: ' + this.player.x +
-              ', Zoom: ' + this.player.zoom);
+  // console.log('X: ' + this.player.x +
+  //             ', Zoom: ' + this.player.zoom);
 };
 
 Game.prototype.renderChunk = function(chunk, x, depth, scale, previousChunk) {
