@@ -19,7 +19,7 @@ function Chunk() {
   this.oneHot = false;
 }
 
-Chunk.WIDTH = 8;
+Chunk.WIDTH = 16;
 
 Chunk.prototype.setBlock = function(x, block) {
   if (x < 0 || x >= Chunk.WIDTH) {

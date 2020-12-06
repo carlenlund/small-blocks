@@ -7,10 +7,14 @@ function Game(window, canvas, ctx) {
   this.canvas = canvas;
   this.ctx = ctx;
 
-  this.renderDistance = 3;
+  this.renderDistance = 4;
 
   this.world = new Chunk();
+  this.enforceRenderDistance(this.world, this.renderDistance);
   this.generateBlocks(this.world);
+  for (var i = 0; i < this.world.neighbors.length; ++i) {
+    this.generateBlocks(this.world.neighbors[i]);
+  }
 
   this.player = new Player();
   this.player.x = Chunk.WIDTH / 2 - 1;
@@ -229,7 +233,7 @@ Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {
       chunk.neighbors[i] = neighbor;
       neighbor.neighbors[i === 0 ? 1 : 0] = chunk;
 
-      this.generateBlocks(neighbor);
+      // this.generateBlocks(neighbor);
     }
     this.enforceRenderDistance(neighbor, renderDistance);
   }
