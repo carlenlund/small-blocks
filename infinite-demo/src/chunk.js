@@ -70,12 +70,18 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
     parentNeighborChild.parent = parentNeighbor;
     if (parentNeighborChild.oneHot) {
       parentNeighborChild.sampleDirtyPositive(parentNeighbor,
-                                              Math.floor(Chunk.WIDTH / 2), Chunk.WIDTH,
+                                              Chunk.WIDTH / 2, Chunk.WIDTH,
                                               0, Chunk.WIDTH);
     } else {
       parentNeighborChild.sampleDirtyPositive(parentNeighbor,
-                                              0, Math.floor(Chunk.WIDTH / 2),
+                                              0, Chunk.WIDTH / 2,
                                               0, Chunk.WIDTH);
+    }
+    parentNeighborChild.setDirtyNegative(0, Chunk.WIDTH, false);
+    if (parentNeighborChild.oneHot) {
+      parentNeighbor.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
+    } else {
+      parentNeighbor.setDirtyPositive(0, Chunk.WIDTH / 2, false);
     }
   }
 

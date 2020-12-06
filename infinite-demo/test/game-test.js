@@ -13,8 +13,9 @@ describe('Game', function() {
         }
       });
 
-      describe('Left to left chunk neighbor, Zoom in, Right to right chunk neighbor', function() {
+      describe('Left chunk neighbor, Zoom in, Right chunk neighbor', function() {
         beforeEach(function() {
+          this.game.player.x = 0;
           this.game.moveLeft();
           this.game.zoomIn();
           this.game.moveRight();
@@ -36,11 +37,10 @@ describe('Game', function() {
         });
       });
 
-      describe('Right to right half of chunk, Zoom in, Left', function() {
+      describe('Right half of chunk, Zoom in, Left chunk neighbor', function() {
         beforeEach(function() {
-          for (var x = 0; x < Chunk.WIDTH / 2; ++x) {
-            this.game.moveRight();
-          }
+          this.game.player.x = Chunk.WIDTH / 2;
+          this.game.moveRight();
           this.game.zoomIn();
           this.game.moveLeft();
         });
@@ -60,11 +60,10 @@ describe('Game', function() {
         });
       });
 
-      describe('Right to right chunk neighbor, Zoom in, Left', function() {
+      describe('Right chunk neighbor, Zoom in, Left chunk neighbor', function() {
         beforeEach(function() {
-          for (var x = 0; x < Chunk.WIDTH; ++x) {
-            this.game.moveRight();
-          }
+          this.game.player.x = Chunk.WIDTH - 1;
+          this.game.moveRight();
           this.game.zoomIn();
           this.game.moveLeft();
         });
