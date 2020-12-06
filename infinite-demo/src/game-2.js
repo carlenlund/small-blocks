@@ -113,6 +113,9 @@ Game.prototype.zoomOut = function() {
 Game.prototype.zoomIn = function() {
   var childIndex = this.player.x < Math.floor(Chunk.WIDTH / 2) ? 0 : 1;
 
+  if (childIndex === 1) {
+    this.player.x -= Math.floor(Chunk.WIDTH / 2);
+  }
   this.player.x *= 2;
 
   var chunk;
@@ -178,8 +181,9 @@ Game.prototype.setBlock = function(x, value) {
 
 Game.prototype.checkPlayerOutOfBounds = function() {
   while (this.player.x < 0) {
-    if (!this.player.chunk.neighbors[0]) {
-      var chunk = new Chunk();
+    var chunk = this.player.chunk.lookUpNeighbor(0);
+    if (!chunk) {
+      chunk = new Chunk();
       chunk.oneHot = !this.player.chunk.oneHot;
       this.player.chunk.neighbors[0] = chunk;
       chunk.neighbors[1] = this.player.chunk;
@@ -195,7 +199,8 @@ Game.prototype.checkPlayerOutOfBounds = function() {
   }
 
   while (this.player.x >= Chunk.WIDTH) {
-    if (!this.player.chunk.neighbors[1]) {
+    var chunk = this.player.chunk.lookUpNeighbor(1);
+    if (!chunk) {
       var chunk = new Chunk();
       chunk.oneHot = !this.player.chunk.oneHot;
       this.player.chunk.neighbors[1] = chunk;

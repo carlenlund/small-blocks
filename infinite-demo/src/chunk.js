@@ -30,6 +30,66 @@ Chunk.prototype.setBlock = function(x, block) {
   this.dirtyPositive[x] = true;
 };
 
+// FIXME: Assumes that the neighbor can be found by searching via parent nodes.
+// It might as well be found by traversing child nodes.
+Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
+  if (isParent &&
+      ((childOneHot && index === 0) ||
+       (!childOneHot && index === 1))) {
+    return this;
+  }
+  if (this.neighbors[index]) {
+    return this.neighbors[index];
+  }
+  if (!this.parent) {
+    return null;
+  }
+  
+  var parentNeighbor = this.parent.lookUpNeighbor(index, true, this.oneHot);
+  if (!parentNeighbor) {
+    return null;
+  }
+
+  var parentNeighborChildIndex;
+  var parentNeighborChild;
+  if ((this.oneHot && index === 0) ||
+      (!this.oneHot && index === 1)) {
+    // Use same index, since we have the same parent as the target chunk.
+    parentNeighborChildIndex = index;
+    parentNeighbor.children[parentNeighborChildIndex];
+  } else {
+    // Use index in opposite direction to move towards target chunk.
+    parentNeighborChildIndex = index === 0 ? 1 : 0;
+    parentNeighborChild = parentNeighbor.children[parentNeighborChildIndex];
+  }
+
+  if (!parentNeighborChild) {
+    parentNeighborChild = new Chunk();
+    parentNeighborChild.oneHot = parentNeighborChildIndex === 1;
+    parentNeighbor.children[parentNeighborChildIndex] = parentNeighborChild;
+    parentNeighborChild.parent = parentNeighbor;
+    if (parentNeighborChild.oneHot) {
+      parentNeighborChild.sampleDirtyPositive(parentNeighbor,
+                                              Math.floor(Chunk.WIDTH / 2), Chunk.WIDTH,
+                                              0, Chunk.WIDTH);
+    } else {
+      parentNeighborChild.sampleDirtyPositive(parentNeighbor,
+                                              0, Math.floor(Chunk.WIDTH / 2),
+                                              0, Chunk.WIDTH);
+    }
+  }
+
+  if (index === 0) {
+    this.neighbors[0] = parentNeighborChild;
+    parentNeighborChild.neighbors[1] = this;
+  } else {
+    this.neighbors[1] = parentNeighborChild;
+    parentNeighborChild.neighbors[0] = this;
+  }
+
+  return parentNeighborChild;
+};
+
 // start, sampleStart are either 0 or Chunk.WIDTH / 2
 // end, sampleEnd are either Chunk.WIDTH / 2 or Chunk.WIDTH
 Chunk.prototype.sample = function(chunk, sampleStart, sampleEnd, start, end) {

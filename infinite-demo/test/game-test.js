@@ -4,30 +4,84 @@ var Chunk = require('../src/chunk');
 
 describe('Game', function() {
   describe('World', function() {
-    describe('U-turn: Left, Zoom in, Right', function() {
+    describe('U-turn', function() {
       beforeEach(function() {
         this.game = new Game(null, null, null);
         this.chunk1 = this.game.player.chunk;
         for (var x = 0; x < Chunk.WIDTH; ++x) {
           this.game.setBlock(x, 3);
         }
-        this.game.moveLeft();
-        this.game.zoomIn();
-        this.game.moveRight();
       });
 
-      it('connects U-turn chunk with indirect parent', function() {
-        var chunk2 = this.game.player.chunk;
-        assert.equal(chunk2.parent, this.chunk1);
+      describe('Left to left chunk neighbor, Zoom in, Right to right chunk neighbor', function() {
+        beforeEach(function() {
+          this.game.moveLeft();
+          this.game.zoomIn();
+          this.game.moveRight();
+          this.game.moveRight();
+        });
+
+        it('connects U-turn chunk with indirect parent', function() {
+          var chunk2 = this.game.player.chunk;
+          assert.equal(chunk2.parent, this.chunk1);
+        });
+
+        it('samples blocks from indirect parent', function() {
+          var chunk2 = this.game.player.chunk;
+          var blocks = [];
+          for (var x = 0; x < Chunk.WIDTH; ++x) {
+            blocks.push(3);
+          }
+          assert.deepEqual(chunk2.blocks, blocks);
+        });
       });
 
-      it('samples blocks from indirect parent', function() {
-        var chunk2 = this.game.player.chunk;
-        var blocks = [];
-        for (var x = 0; x < Chunk.WIDTH; ++x) {
-          blocks.push(3);
-        }
-        assert.equal(chunk2.blocks, blocks);
+      describe('Right to right half of chunk, Zoom in, Left', function() {
+        beforeEach(function() {
+          for (var x = 0; x < Chunk.WIDTH / 2; ++x) {
+            this.game.moveRight();
+          }
+          this.game.zoomIn();
+          this.game.moveLeft();
+        });
+      
+        it('connects U-turn chunk with indirect parent', function() {
+          var chunk2 = this.game.player.chunk;
+          assert.equal(chunk2.parent, this.chunk1);
+        });
+      
+        it('samples blocks from indirect parent', function() {
+          var chunk2 = this.game.player.chunk;
+          var blocks = [];
+          for (var x = 0; x < Chunk.WIDTH; ++x) {
+            blocks.push(3);
+          }
+          assert.deepEqual(chunk2.blocks, blocks);
+        });
+      });
+
+      describe('Right to right chunk neighbor, Zoom in, Left', function() {
+        beforeEach(function() {
+          for (var x = 0; x < Chunk.WIDTH; ++x) {
+            this.game.moveRight();
+          }
+          this.game.zoomIn();
+          this.game.moveLeft();
+        });
+      
+        it('connects U-turn chunk with indirect parent', function() {
+          var chunk2 = this.game.player.chunk;
+          assert.equal(chunk2.parent, this.chunk1);
+        });
+      
+        it('samples blocks from indirect parent', function() {
+          var chunk2 = this.game.player.chunk;
+          var blocks = [];
+          for (var x = 0; x < Chunk.WIDTH; ++x) {
+            blocks.push(3);
+          }
+          assert.deepEqual(chunk2.blocks, blocks);
+        });
       });
     });
   });
