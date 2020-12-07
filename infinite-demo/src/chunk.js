@@ -39,51 +39,14 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   if (isParent &&
       ((childOneHot && index === 0) ||
        (!childOneHot && index === 1))) {
-    if (this.parent) {
-      // Resample from parent in case blocks have changed in the parent.
-      // TODO: Should sample from children as well, but prioritize parent.
-      if (this.oneHot) {
-        this.sampleDirtyPositive(this.parent,
-                                 Chunk.WIDTH / 2, Chunk.WIDTH,
-                                 0, Chunk.WIDTH);
-      } else {
-        this.sampleDirtyPositive(this.parent,
-                                 0, Chunk.WIDTH / 2,
-                                 0, Chunk.WIDTH);
-      }
-      this.setDirtyNegative(0, Chunk.WIDTH, false);
-      if (this.oneHot) {
-        this.parent.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
-      } else {
-        this.parent.setDirtyPositive(0, Chunk.WIDTH / 2, false);
-      }
-    }
-
+    // TODO: Should sample from children as well, but prioritize parent.
+    this.sampleDirtyParent();
     return this;
   }
   if (this.neighbors[index]) {
     var neighbor = this.neighbors[index];
-
-    if (neighbor.parent) {
-      // Resample from parent in case blocks have changed in the parent.
-      // TODO: Should sample from children as well, but prioritize parent.
-      if (neighbor.oneHot) {
-        neighbor.sampleDirtyPositive(neighbor.parent,
-                                     Chunk.WIDTH / 2, Chunk.WIDTH,
-                                     0, Chunk.WIDTH);
-      } else {
-        neighbor.sampleDirtyPositive(neighbor.parent,
-                                     0, Chunk.WIDTH / 2,
-                                     0, Chunk.WIDTH);
-      }
-      neighbor.setDirtyNegative(0, Chunk.WIDTH, false);
-      if (neighbor.oneHot) {
-        neighbor.parent.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
-      } else {
-        neighbor.parent.setDirtyPositive(0, Chunk.WIDTH / 2, false);
-      }
-    }
-
+    // TODO: Should sample from children as well, but prioritize parent.
+    neighbor.sampleDirtyParent();
     return neighbor;
   }
   if (!this.parent) {
@@ -114,23 +77,8 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
     parentNeighborChild.parent = parentNeighbor;
   }
 
-  // Resample from parent in case blocks have changed in the parent.
   // TODO: Should sample from children as well, but prioritize parent.
-  if (parentNeighborChild.oneHot) {
-    parentNeighborChild.sampleDirtyPositive(parentNeighbor,
-                                            Chunk.WIDTH / 2, Chunk.WIDTH,
-                                            0, Chunk.WIDTH);
-  } else {
-    parentNeighborChild.sampleDirtyPositive(parentNeighbor,
-                                            0, Chunk.WIDTH / 2,
-                                            0, Chunk.WIDTH);
-  }
-  parentNeighborChild.setDirtyNegative(0, Chunk.WIDTH, false);
-  if (parentNeighborChild.oneHot) {
-    parentNeighbor.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
-  } else {
-    parentNeighbor.setDirtyPositive(0, Chunk.WIDTH / 2, false);
-  }
+  parentNeighborChild.sampleDirtyParent();
 
   if (index === 0) {
     this.neighbors[0] = parentNeighborChild;
@@ -141,6 +89,69 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   }
 
   return parentNeighborChild;
+};
+
+Chunk.prototype.sampleParent = function() {
+  if (!this.parent) {
+    return;
+  }
+  if (this.oneHot) {
+    this.sample(this.parent,
+                Chunk.WIDTH / 2, Chunk.WIDTH,
+                0, Chunk.WIDTH);
+  } else {
+    this.sample(this.parent,
+                0, Chunk.WIDTH / 2,
+                0, Chunk.WIDTH);
+  }
+  this.setDirtyNegative(0, Chunk.WIDTH, false);
+  if (this.oneHot) {
+    this.parent.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
+  } else {
+    this.parent.setDirtyPositive(0, Chunk.WIDTH / 2, false);
+  }
+};
+
+Chunk.prototype.sampleDirtyParent = function() {
+  if (!this.parent) {
+    return;
+  }
+
+  var sampleStart;
+  var sampleEnd;
+  if (this.oneHot) {
+    sampleStart = Chunk.WIDTH / 2;
+    sampleEnd = Chunk.WIDTH;
+  } else {
+    sampleStart = 0;
+    sampleEnd = Chunk.WIDTH / 2;
+  }
+  var start = 0;
+  var end = Chunk.WIDTH;
+  var sampleWidth = (sampleEnd - sampleStart) / (end - start);
+
+  for (var i = start; i < end; ++i) {
+    var index = sampleStart + Math.floor(i * sampleWidth);
+    if (sampleWidth === 2) {
+      if (this.parent.dirtyPositive[index] ||
+          this.parent.dirtyPositive[index + 1]) {
+        if (this.parent.blocks[index] === this.parent.blocks[index + 1]) {
+          this.setBlock(i, this.parent.blocks[index]);
+        } else {
+          this.setBlock(i, 0);
+        }
+      }
+    } else if (this.parent.dirtyPositive[index]) {
+      this.setBlock(i, this.parent.blocks[index]);
+    }
+  }
+
+  this.setDirtyNegative(0, Chunk.WIDTH, false);
+  if (this.oneHot) {
+    this.parent.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
+  } else {
+    this.parent.setDirtyPositive(0, Chunk.WIDTH / 2, false);
+  }
 };
 
 // start, sampleStart are either 0 or Chunk.WIDTH / 2
@@ -177,27 +188,6 @@ Chunk.prototype.sampleDirtyNegative = function(chunk, sampleStart, sampleEnd,
         }
       }
     } else if (chunk.dirtyNegative[index]) {
-      this.setBlock(i, chunk.blocks[index]);
-    }
-  }
-};
-
-// Samples only blocks marked as dirty positive.
-// Parameters same as Chunk.prototype.sample().
-Chunk.prototype.sampleDirtyPositive = function(chunk, sampleStart, sampleEnd,
-                                               start, end) {
-  var sampleWidth = (sampleEnd - sampleStart) / (end - start);
-  for (var i = start; i < end; ++i) {
-    var index = sampleStart + Math.floor(i * sampleWidth);
-    if (sampleWidth === 2) {
-      if (chunk.dirtyPositive[index] || chunk.dirtyPositive[index + 1]) {
-        if (chunk.blocks[index] === chunk.blocks[index + 1]) {
-          this.setBlock(i, chunk.blocks[index]);
-        } else {
-          this.setBlock(i, 0);
-        }
-      }
-    } else if (chunk.dirtyPositive[index]) {
       this.setBlock(i, chunk.blocks[index]);
     }
   }

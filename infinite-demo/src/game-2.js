@@ -7,7 +7,7 @@ function Game(window, canvas, ctx) {
   this.canvas = canvas;
   this.ctx = ctx;
 
-  this.renderDistance = 4;
+  this.renderDistance = 6;
 
   this.world = new Chunk();
   this.enforceRenderDistance(this.world, this.renderDistance);
@@ -20,8 +20,11 @@ function Game(window, canvas, ctx) {
   this.player.x = Chunk.WIDTH / 2 - 1;
   this.player.chunk = this.world;
 
+  this.pressedKeys = {};
+
   if (this.window) {
     this.window.addEventListener('keydown', function(event) {
+      this.pressedKeys[event.keyCode] = true;
       if (event.keyCode === 'A'.charCodeAt(0)) {
         this.moveLeft();
       }
@@ -43,12 +46,16 @@ function Game(window, canvas, ctx) {
 
       this.render();
     }.bind(this));
+
+    this.window.addEventListener('keyup', function(event) {
+      this.pressedKeys[event.keyCode] = false;
+    }.bind(this));
   }
 }
 
 Game.prototype.run = function() {
   this.checkPlayerOutOfBounds();
-  this.render();
+  this.updateLoop();
 };
 
 Game.prototype.moveLeft = function() {
@@ -138,31 +145,9 @@ Game.prototype.zoomIn = function() {
   }
 
   if (isNewChunk) {
-    if (chunk.oneHot) {
-      chunk.sample(this.player.chunk,
-                   Chunk.WIDTH / 2, Chunk.WIDTH,
-                   0, Chunk.WIDTH);
-    } else {
-      chunk.sample(this.player.chunk,
-                   0, Chunk.WIDTH / 2,
-                   0, Chunk.WIDTH);
-    }
+    chunk.sampleParent();
   } else {
-    if (chunk.oneHot) {
-      chunk.sampleDirtyPositive(this.player.chunk,
-                                Chunk.WIDTH / 2, Chunk.WIDTH,
-                                0, Chunk.WIDTH);
-    } else {
-      chunk.sampleDirtyPositive(this.player.chunk,
-                                0, Chunk.WIDTH / 2,
-                                0, Chunk.WIDTH);
-    }
-  }
-  chunk.setDirtyNegative(0, Chunk.WIDTH, false);
-  if (chunk.oneHot) {
-    this.player.chunk.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
-  } else {
-    this.player.chunk.setDirtyPositive(0, Chunk.WIDTH / 2, false);
+    chunk.sampleDirtyParent();
   }
 
   this.player.chunk = chunk;
@@ -239,11 +224,17 @@ Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {
   }
 };
 
+Game.prototype.updateLoop = function() {
+  this.render();
+
+  requestAnimationFrame(this.updateLoop.bind(this));
+};
+
 Game.prototype.render = function() {
-  this.ctx.fillStyle = '#fff';
+  this.ctx.fillStyle = '#000';
   this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-  var scale = 130;
+  var scale = 150;
 
   this.ctx.save();
   this.ctx.translate(this.canvas.width / 2 - this.player.x * scale / Chunk.WIDTH, 0);
@@ -269,13 +260,14 @@ Game.prototype.renderChunk = function(chunk, x, depth, scale, previousChunk) {
   var blockSize = scale / Chunk.WIDTH;
   for (var i = 0; i < chunk.blocks.length; ++i) {
     if (chunk.blocks[i] === 0) {
-      this.ctx.fillStyle = '#ddd';
-    } else if (chunk.blocks[i] === 1) {
-      this.ctx.fillStyle = '#45a';
+      continue;
+    }
+    if (chunk.blocks[i] === 1) {
+      this.ctx.fillStyle = '#9c5';
     } else if (chunk.blocks[i] === 2) {
-      this.ctx.fillStyle = '#b54';
+      this.ctx.fillStyle = '#46d';
     } else if (chunk.blocks[i] === 3) {
-      this.ctx.fillStyle = '#4a5';
+      this.ctx.fillStyle = '#d64';
     }
 
     this.ctx.fillRect(Math.floor(x + i * blockSize), 0,
@@ -305,7 +297,7 @@ Game.prototype.renderPlayer = function(player, scale) {
   this.ctx.lineWidth = 1;
   this.ctx.beginPath();
   var x = this.player.x * scale / Chunk.WIDTH + scale / Chunk.WIDTH / 2;
-  this.ctx.arc(x, 0.1 * this.canvas.height, this.player.size / 2,
+  this.ctx.arc(x, 0.38 * this.canvas.height, this.player.size / 2,
                0, 2 * Math.PI);
   this.ctx.fill();
   this.ctx.stroke();
