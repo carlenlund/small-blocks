@@ -126,32 +126,18 @@ Game.prototype.zoomOut = function() {
 
 Game.prototype.zoomIn = function() {
   var childIndex = this.player.x < Chunk.WIDTH / 2 ? 0 : 1;
-
   if (childIndex === 1) {
     this.player.x -= Chunk.WIDTH / 2;
   }
   this.player.x *= 2;
 
-  var chunk;
-  var isNewChunk = false;
-  if (this.player.chunk.children[childIndex]) {
-    chunk = this.player.chunk.children[childIndex];
-  } else {
-    chunk = new Chunk();
-    chunk.oneHot = childIndex === 1;
-    this.player.chunk.children[childIndex] = chunk;
-    chunk.parent = this.player.chunk;
-    isNewChunk = true;
+  var chunk = this.player.chunk.children[childIndex];
+  if (!chunk) {
+    chunk = this.player.chunk.createChild(childIndex);
   }
-
-  if (isNewChunk) {
-    chunk.sampleParent();
-  } else {
-    chunk.sampleDirtyParent();
-  }
+  chunk.sampleParent();
 
   this.player.chunk = chunk;
-
   this.checkPlayerOutOfBounds();
 
   ++this.player.zoom;
@@ -173,32 +159,20 @@ Game.prototype.checkPlayerOutOfBounds = function() {
   while (this.player.x < 0) {
     var chunk = this.player.chunk.lookUpNeighbor(0);
     if (!chunk) {
-      chunk = new Chunk();
-      chunk.oneHot = !this.player.chunk.oneHot;
-      this.player.chunk.neighbors[0] = chunk;
-      chunk.neighbors[1] = this.player.chunk;
-
+      chunk = this.player.chunk.createNeighbor(0);
       this.generateBlocks(chunk);
     }
-
     this.player.chunk = this.player.chunk.neighbors[0];
-
     this.player.x += Chunk.WIDTH;
   }
 
   while (this.player.x >= Chunk.WIDTH) {
     var chunk = this.player.chunk.lookUpNeighbor(1);
     if (!chunk) {
-      chunk = new Chunk();
-      chunk.oneHot = !this.player.chunk.oneHot;
-      this.player.chunk.neighbors[1] = chunk;
-      chunk.neighbors[0] = this.player.chunk;
-
+      chunk = this.player.chunk.createNeighbor(1);
       this.generateBlocks(chunk);
     }
-
     this.player.chunk = this.player.chunk.neighbors[1];
-
     this.player.x -= Chunk.WIDTH;
   }
 
@@ -213,12 +187,7 @@ Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {
   for (var i = 0; i < chunk.neighbors.length; ++i) {
     var neighbor = chunk.lookUpNeighbor(i);
     if (!neighbor) {
-      neighbor = new Chunk();
-      neighbor.oneHot = !chunk.oneHot;
-      chunk.neighbors[i] = neighbor;
-      neighbor.neighbors[i === 0 ? 1 : 0] = chunk;
-
-      // this.generateBlocks(neighbor);
+      neighbor = chunk.createNeighbor(i);
     }
     this.enforceRenderDistance(neighbor, renderDistance);
   }
