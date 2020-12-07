@@ -9,7 +9,7 @@ describe('Game', function() {
   });
 
   describe('World', function() {
-    describe('U-turn', function() {
+    describe('Zoom in U-turn', function() {
       beforeEach(function() {
         this.chunk1 = this.game.player.chunk;
         for (var x = 0; x < Chunk.WIDTH; ++x) {
@@ -89,7 +89,7 @@ describe('Game', function() {
     });
 
     describe('Zoom in-out building bug', function() {
-      it('', function() {
+      it('samples all parent blocks for neighbor chunks', function() {
         this.game.player.x = 0;
         for (var i = 0; i < 4; ++i) {
           this.game.zoomIn();
@@ -112,6 +112,18 @@ describe('Game', function() {
           blocks.push(3);
         }
         assert.deepEqual(leftChunk.blocks, blocks);
+      });
+
+      it('samples equal child block pairs when zooming out from even coordinate', function() {
+        this.game.player.x = 0;
+        this.game.breakBlock();
+        this.game.zoomIn();
+        this.game.placeBlock(3);
+        this.game.moveRight();
+        this.game.placeBlock(3);
+        this.game.moveLeft();
+        this.game.zoomOut();
+        assert.equal(this.game.player.chunk.blocks[0], 3);
       });
     });
   });

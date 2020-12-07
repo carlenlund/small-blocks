@@ -60,8 +60,8 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   childOneHot = typeof(childOneHot) === 'undefined' ? false : childOneHot;
 
   if (isParent &&
-    ((childOneHot && index === 0) ||
-      (!childOneHot && index === 1))) {
+      ((childOneHot && index === 0) ||
+       (!childOneHot && index === 1))) {
     // TODO: Should sample from children as well, but prioritize parent.
     this.sampleParent();
     return this;
@@ -140,7 +140,7 @@ Chunk.prototype.sampleParent = function() {
 };
 
 Chunk.prototype.sampleDirtyNegative = function(chunk, sampleStart, sampleEnd,
-  start, end) {
+                                               start, end) {
   var sampleWidth = (sampleEnd - sampleStart) / (end - start);
   for (var i = start; i < end; ++i) {
     var index = sampleStart + Math.floor(i * sampleWidth);
