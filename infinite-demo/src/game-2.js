@@ -17,7 +17,7 @@ function Game(window, canvas, ctx) {
   }
 
   this.player = new Player();
-  this.player.x = Chunk.WIDTH / 2 - 1;
+  this.player.x = Chunk.WIDTH / 2;
   this.player.chunk = this.world;
 
   this.pressedKeys = {};
@@ -75,50 +75,16 @@ Game.prototype.moveRight = function() {
 Game.prototype.zoomOut = function() {
   this.player.x /= 2;
   if (this.player.chunk.oneHot) {
-    this.player.x += this.player.chunk.oneHot * Chunk.WIDTH / 2;
+    this.player.x += Chunk.WIDTH / 2;
   }
 
-  var chunk;
-  var isNewChunk = false;
-  if (this.player.chunk.parent) {
-    chunk = this.player.chunk.parent;
-  } else {
-    chunk = new Chunk();
-    this.player.chunk.parent = chunk;
-    chunk.children[this.player.chunk.oneHot ? 1 : 0] = this.player.chunk;
-    isNewChunk = true;
+  var chunk = this.player.chunk.parent;
+  if (!chunk) {
+    chunk = this.player.chunk.createParent();
   }
-
-  if (isNewChunk) {
-    if (this.player.chunk.oneHot) {
-      chunk.sample(this.player.chunk,
-                   0, Chunk.WIDTH,
-                   Chunk.WIDTH / 2, Chunk.WIDTH);
-    } else {
-      chunk.sample(this.player.chunk,
-                   0, Chunk.WIDTH,
-                   0, Chunk.WIDTH / 2);
-    }
-  } else {
-    if (this.player.chunk.oneHot) {
-      chunk.sampleDirtyNegative(this.player.chunk,
-                                0, Chunk.WIDTH,
-                                Chunk.WIDTH / 2, Chunk.WIDTH);
-    } else {
-      chunk.sampleDirtyNegative(this.player.chunk,
-                                0, Chunk.WIDTH,
-                                0, Chunk.WIDTH / 2);
-    }
-  }
-  if (this.player.chunk.oneHot) {
-    chunk.setDirtyPositive(Chunk.WIDTH / 2, Chunk.WIDTH, false);
-  } else {
-    chunk.setDirtyPositive(0, Chunk.WIDTH / 2, false);
-  }
-  this.player.chunk.setDirtyNegative(0, Chunk.WIDTH, false);
+  chunk.sampleChildren();
 
   this.player.chunk = chunk;
-
   this.checkPlayerOutOfBounds();
 
   --this.player.zoom;
@@ -152,7 +118,12 @@ Game.prototype.placeBlock = function() {
 };
 
 Game.prototype.setBlock = function(x, value) {
-  this.player.chunk.setBlock(x, value);
+  if (x >= Chunk.WIDTH) {
+    var chunk = this.player.chunk.lookUpNeighbor(1);
+    chunk.setBlock(x - Chunk.WIDTH, value);
+  } else {
+    this.player.chunk.setBlock(x, value);
+  }
 };
 
 Game.prototype.checkPlayerOutOfBounds = function() {
@@ -275,10 +246,10 @@ Game.prototype.renderPlayer = function(player, scale) {
 Game.prototype.generateBlocks = function(chunk) {
   // TODO: This should take into account the current zoom level.
   for (var i = 0; i < chunk.blocks.length; ++i) {
-    if (chunk.oneHot) {
-      chunk.setBlock(i, i % 3 === 0 ? 2 : 0);
-    } else {
+    if (!chunk.oneHot) {
       chunk.setBlock(i, i % 2 === 0 ? 1 : 0);
+    } else {
+      chunk.setBlock(i, i % 3 === 0 ? 2 : 0);
     }
   }
 };

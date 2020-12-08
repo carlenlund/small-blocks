@@ -6,6 +6,9 @@ var Chunk2 = require('../src/chunk2');
 describe('Game', function() {
   beforeEach(function() {
     this.game = new Game(null, null, null);
+    // Reset game world.
+    this.game.world = new Chunk();
+    this.game.player.chunk = this.game.world;
   });
 
   describe('World', function() {
@@ -114,16 +117,22 @@ describe('Game', function() {
         assert.deepEqual(leftChunk.blocks, blocks);
       });
 
-      it('samples equal child block pairs when zooming out from even coordinate', function() {
+      it('places blocks in right neighbor chunk when zooming out on right edge chunk', function() {
         this.game.player.x = 0;
-        this.game.breakBlock();
-        this.game.zoomIn();
-        this.game.placeBlock(3);
-        this.game.moveRight();
-        this.game.placeBlock(3);
         this.game.moveLeft();
         this.game.zoomOut();
+        this.game.placeBlock(3);
+        var chunk = this.game.player.chunk;
+        assert.equal(this.game.player.chunk.blocks[Chunk.WIDTH - 1], 0);
+        this.game.moveRight();
         assert.equal(this.game.player.chunk.blocks[0], 3);
+      });
+
+      it('hides blocks when zooming out from start chunk', function() {
+        this.game.player.x = 0;
+        this.game.placeBlock(3);
+        this.game.zoomOut();
+        assert.equal(this.game.player.chunk.blocks[0], 0);
       });
     });
   });
