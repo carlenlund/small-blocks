@@ -1,4 +1,5 @@
-function Chunk() {
+// Size is a multiple of 2.
+function Chunk(size) {
   this.parent = null;
   this.children = new Array(2);
   for (var i = 0; i < this.children.length; ++i) {
@@ -9,10 +10,11 @@ function Chunk() {
     this.children[i] = null;
   }
 
-  this.blocks = new Array(Chunk.WIDTH);
-  this.dirtyNegative = new Array(Chunk.WIDTH);
-  this.dirtyPositive = new Array(Chunk.WIDTH);
-  for (var i = 0; i < Chunk.WIDTH; ++i) {
+  this.size = size;
+  this.blocks = new Array(this.size);
+  this.dirtyNegative = new Array(this.size);
+  this.dirtyPositive = new Array(this.size);
+  for (var i = 0; i < this.size; ++i) {
     this.setBlock(i, 0);
   }
 
@@ -20,10 +22,8 @@ function Chunk() {
   this.twoHot = false;
 }
 
-Chunk.WIDTH = 16;
-
 Chunk.prototype.setBlock = function(x, block) {
-  if (x < 0 || x >= Chunk.WIDTH) {
+  if (x < 0 || x >= this.size) {
     throw new Error('Chunk index ' + x + ' out of bounds');
   }
   this.blocks[x] = block;
@@ -32,7 +32,7 @@ Chunk.prototype.setBlock = function(x, block) {
 };
 
 Chunk.prototype.createParent = function() {
-  var chunk = new Chunk();
+  var chunk = new Chunk(this.size);
   chunk.oneHot = this.twoHot;
   chunk.twoHot = this.oneHot;
   this.parent = chunk;
@@ -44,7 +44,7 @@ Chunk.prototype.createParent = function() {
 };
 
 Chunk.prototype.createChild = function(index) {
-  var chunk = new Chunk();
+  var chunk = new Chunk(this.size);
   chunk.oneHot = index === 1;
   chunk.twoHot = this.oneHot;
   this.children[index] = chunk;
@@ -53,7 +53,7 @@ Chunk.prototype.createChild = function(index) {
 };
 
 Chunk.prototype.createNeighbor = function(index) {
-  var chunk = new Chunk();
+  var chunk = new Chunk(this.size);
   chunk.oneHot = !this.oneHot;
   chunk.twoHot = this.oneHot && !this.twoHot;
   this.neighbors[index] = chunk;
@@ -68,22 +68,20 @@ Chunk.getOppositeNeighborIndex = function(index) {
   };
 };
 
-// FIXME: Assumes that the neighbor can be found by searching via parent nodes.
-// It might as well be found by traversing child nodes.
 Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   isParent = typeof(isParent) === 'undefined' ? false : isParent;
   childOneHot = typeof(childOneHot) === 'undefined' ? false : childOneHot;
 
   if (isParent &&
-      ((childOneHot && index === 0) ||
-       (!childOneHot && index === 1))) {
-    // TODO: Should sample from children as well, but prioritize parent.
+      ((!childOneHot && index === 1) ||
+       (childOneHot && index === 0))) {
+    this.sampleChildren();
     this.sampleParent();
     return this;
   }
   if (this.neighbors[index]) {
     var neighbor = this.neighbors[index];
-    // TODO: Should sample from children as well, but prioritize parent.
+    neighbor.sampleChildren();
     neighbor.sampleParent();
     return neighbor;
   }
@@ -97,8 +95,8 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   }
 
   var parentNeighborChildIndex;
-  if ((this.oneHot && index === 0) ||
-      (!this.oneHot && index === 1)) {
+  if ((!this.oneHot && index === 1) ||
+      (this.oneHot && index === 0)) {
     // Use same index, since we have the same parent as the target chunk.
     parentNeighborChildIndex = index;
   } else {
@@ -109,7 +107,8 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot) {
   if (!parentNeighborChild) {
     parentNeighborChild = parentNeighbor.createChild(parentNeighborChildIndex);
   }
-  // TODO: Should sample from children as well, but prioritize parent.
+
+  parentNeighborChild.sampleChildren();
   parentNeighborChild.sampleParent();
 
   this.neighbors[index] = parentNeighborChild;
@@ -141,17 +140,17 @@ Chunk.prototype.sampleParent = function() {
 
   var sampleStart;
   var sampleEnd;
-  if (this.oneHot) {
-    sampleStart = Chunk.WIDTH / 2;
-    sampleEnd = Chunk.WIDTH;
-  } else {
+  if (!this.oneHot) {
     sampleStart = 0;
-    sampleEnd = Chunk.WIDTH / 2;
+    sampleEnd = this.size / 2;
+  } else {
+    sampleStart = this.size / 2;
+    sampleEnd = this.size;
   }
   this.sampleDirtyPositive(this.parent, sampleStart, sampleEnd,
-                           0, Chunk.WIDTH);
+                           0, this.size);
 
-  this.setDirtyNegative(0, Chunk.WIDTH, false);
+  this.setDirtyNegative(0, this.size, false);
   this.parent.setDirtyPositive(sampleStart, sampleEnd, false);
 };
 
@@ -186,15 +185,15 @@ Chunk.prototype.sampleChildren = function() {
     var end;
     if (i === 0) {
       start = 0;
-      end = Chunk.WIDTH;
+      end = this.size / 2;
     } else {
-      start = Chunk.WIDTH / 2;
-      end = Chunk.WIDTH;
+      start = this.size / 2;
+      end = this.size;
     }
-    this.sampleDirtyNegative(child, 0, Chunk.WIDTH, start, end);
+    this.sampleDirtyNegative(child, 0, this.size, start, end);
 
     this.setDirtyPositive(start, end, false);
-    child.setDirtyNegative(0, Chunk.WIDTH, false);
+    child.setDirtyNegative(0, this.size, false);
   }
 };
 

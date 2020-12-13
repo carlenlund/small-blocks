@@ -7,18 +7,12 @@ function Game(window, canvas, ctx) {
   this.canvas = canvas;
   this.ctx = ctx;
 
-  this.renderDistance = 6;
+  this.renderDistance = 0;
 
-  this.world = new Chunk();
-  this.enforceRenderDistance(this.world, this.renderDistance);
-  this.generateBlocks(this.world);
-  for (var i = 0; i < this.world.neighbors.length; ++i) {
-    this.generateBlocks(this.world.neighbors[i]);
-  }
-
+  this.world = null;
   this.player = new Player();
-  this.player.x = Chunk.WIDTH / 2;
-  this.player.chunk = this.world;
+  this.player.speed = Game.NUM_SUBDIVISIONS;
+  this.initializeWorld();
 
   this.pressedKeys = {};
 
@@ -53,29 +47,29 @@ function Game(window, canvas, ctx) {
   }
 }
 
+Game.NUM_SUBDIVISIONS = 4;
+Game.CHUNK_SIZE = 16;
+
 Game.prototype.run = function() {
-  this.checkPlayerOutOfBounds();
   this.updateLoop();
 };
 
 Game.prototype.moveLeft = function() {
   this.player.x -= this.player.speed;
-  this.player.x = Math.ceil(this.player.x);
-
-  this.checkPlayerOutOfBounds();
+  this.player.x = Math.ceil(this.player.x / Game.NUM_SUBDIVISIONS)
+                  * Game.NUM_SUBDIVISIONS;
 };
 
 Game.prototype.moveRight = function() {
   this.player.x += this.player.speed;
-  this.player.x = Math.floor(this.player.x);
-
-  this.checkPlayerOutOfBounds();
+  this.player.x = Math.floor(this.player.x / Game.NUM_SUBDIVISIONS)
+                  * Game.NUM_SUBDIVISIONS;
 };
 
 Game.prototype.zoomOut = function() {
   this.player.x /= 2;
   if (this.player.chunk.oneHot) {
-    this.player.x += Chunk.WIDTH / 2;
+    this.player.x += this.player.chunk.size / 2;
   }
 
   var chunk = this.player.chunk.parent;
@@ -85,15 +79,14 @@ Game.prototype.zoomOut = function() {
   chunk.sampleChildren();
 
   this.player.chunk = chunk;
-  this.checkPlayerOutOfBounds();
 
   --this.player.zoom;
 };
 
 Game.prototype.zoomIn = function() {
-  var childIndex = this.player.x < Chunk.WIDTH / 2 ? 0 : 1;
+  var childIndex = this.player.x < this.player.chunk.size / 2 ? 0 : 1;
   if (childIndex === 1) {
-    this.player.x -= Chunk.WIDTH / 2;
+    this.player.x -= this.player.chunk.size / 2;
   }
   this.player.x *= 2;
 
@@ -104,25 +97,31 @@ Game.prototype.zoomIn = function() {
   chunk.sampleParent();
 
   this.player.chunk = chunk;
-  this.checkPlayerOutOfBounds();
 
   ++this.player.zoom;
 };
 
 Game.prototype.breakBlock = function() {
-  this.setBlock(Math.round(this.player.x), 0);
+  this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS), 0);
 };
 
 Game.prototype.placeBlock = function() {
-  this.setBlock(Math.round(this.player.x), 3);
+  this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS), 3);
 };
 
 Game.prototype.setBlock = function(x, value) {
-  if (x >= Chunk.WIDTH) {
-    var chunk = this.player.chunk.lookUpNeighbor(1);
-    chunk.setBlock(x - Chunk.WIDTH, value);
+  var chunk;
+  if (x >= Game.CHUNK_SIZE) {
+    x -= Game.CHUNK_SIZE;
+    chunk = this.player.chunk.lookUpNeighbor(1);
+    if (!chunk) {
+      chunk = this.player.chunk.createNeighbor(1);
+    }
   } else {
-    this.player.chunk.setBlock(x, value);
+    chunk = this.player.chunk;
+  }
+  for (var i = 0; i < Game.NUM_SUBDIVISIONS; ++i) {
+    chunk.setBlock(x * Game.NUM_SUBDIVISIONS + i, value);
   }
 };
 
@@ -131,27 +130,23 @@ Game.prototype.checkPlayerOutOfBounds = function() {
     var chunk = this.player.chunk.lookUpNeighbor(0);
     if (!chunk) {
       chunk = this.player.chunk.createNeighbor(0);
-      this.generateBlocks(chunk);
     }
     this.player.chunk = this.player.chunk.neighbors[0];
-    this.player.x += Chunk.WIDTH;
+    this.player.x += this.player.chunk.size;
   }
 
-  while (this.player.x >= Chunk.WIDTH) {
+  while (this.player.x >= this.player.chunk.size) {
     var chunk = this.player.chunk.lookUpNeighbor(1);
     if (!chunk) {
       chunk = this.player.chunk.createNeighbor(1);
-      this.generateBlocks(chunk);
     }
     this.player.chunk = this.player.chunk.neighbors[1];
-    this.player.x -= Chunk.WIDTH;
+    this.player.x -= this.player.chunk.size;
   }
-
-  this.enforceRenderDistance(this.player.chunk, this.renderDistance);
 };
 
 Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {
-  if (renderDistance <= 1) {
+  if (renderDistance < 1) {
     return;
   }
   --renderDistance;
@@ -165,9 +160,15 @@ Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {
 };
 
 Game.prototype.updateLoop = function() {
+  this.update();
   this.render();
 
   requestAnimationFrame(this.updateLoop.bind(this));
+};
+
+Game.prototype.update = function() {
+  this.checkPlayerOutOfBounds();
+  this.enforceRenderDistance(this.player.chunk, this.renderDistance);
 };
 
 Game.prototype.render = function() {
@@ -177,7 +178,9 @@ Game.prototype.render = function() {
   var scale = 150;
 
   this.ctx.save();
-  this.ctx.translate(this.canvas.width / 2 - this.player.x * scale / Chunk.WIDTH, 0);
+  this.ctx.translate(
+      this.canvas.width / 2 - this.player.x * scale / this.player.chunk.size,
+      0);
 
   this.renderChunk(this.player.chunk, 0, this.renderDistance, scale, null);
   this.renderPlayer(this.player, scale);
@@ -189,7 +192,7 @@ Game.prototype.render = function() {
 };
 
 Game.prototype.renderChunk = function(chunk, x, depth, scale, previousChunk) {
-  if (depth === 0) {
+  if (depth < 0) {
     return;
   }
   if (previousChunk === chunk) {
@@ -197,7 +200,7 @@ Game.prototype.renderChunk = function(chunk, x, depth, scale, previousChunk) {
   }
 
   var halfWidth = scale / 2;
-  var blockSize = scale / Chunk.WIDTH;
+  var blockSize = scale / this.player.chunk.size;
   for (var i = 0; i < chunk.blocks.length; ++i) {
     if (chunk.blocks[i] === 0) {
       continue;
@@ -210,8 +213,8 @@ Game.prototype.renderChunk = function(chunk, x, depth, scale, previousChunk) {
       this.ctx.fillStyle = '#d64';
     }
 
-    this.ctx.fillRect(Math.floor(x + i * blockSize), 0,
-                      Math.ceil(blockSize), this.canvas.height);
+    this.ctx.fillRect(x + i * blockSize, 0,
+                      blockSize, this.canvas.height);
   }
 
   --depth;
@@ -236,21 +239,39 @@ Game.prototype.renderPlayer = function(player, scale) {
   this.ctx.strokeStyle = '#000';
   this.ctx.lineWidth = 1;
   this.ctx.beginPath();
-  var x = this.player.x * scale / Chunk.WIDTH + scale / Chunk.WIDTH / 2;
-  this.ctx.arc(x, 0.38 * this.canvas.height, this.player.size / 2,
-               0, 2 * Math.PI);
+  var x = this.player.x * scale / this.player.chunk.size
+          + scale / this.player.chunk.size / 2 * Game.NUM_SUBDIVISIONS;
+  var y = 0.38 * this.canvas.height;
+  this.ctx.arc(x, y, this.player.size / 2, 0, 2 * Math.PI);
   this.ctx.fill();
   this.ctx.stroke();
+};
+
+Game.prototype.initializeWorld = function() {
+  this.world = new Chunk(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
+  this.generateBlocks(this.world);
+  for (var i = 0; i < this.world.neighbors.length; ++i) {
+    var chunk = this.world.lookUpNeighbor(i);
+    if (!chunk) {
+      chunk = this.world.createNeighbor(i);
+    }
+    this.generateBlocks(chunk);
+  }
+
+  this.player.chunk = this.world;
+  this.player.x = this.player.chunk.size / 2;
 };
 
 Game.prototype.generateBlocks = function(chunk) {
   // TODO: This should take into account the current zoom level.
   for (var i = 0; i < chunk.blocks.length; ++i) {
+    var block;
     if (!chunk.oneHot) {
-      chunk.setBlock(i, i % 2 === 0 ? 1 : 0);
+      block = Math.floor(i / Game.NUM_SUBDIVISIONS) % 2 === 0 ? 1 : 0;
     } else {
-      chunk.setBlock(i, i % 3 === 0 ? 2 : 0);
+      block = Math.floor(i / Game.NUM_SUBDIVISIONS) % 3 === 0 ? 2 : 0;
     }
+    chunk.setBlock(i, block);
   }
 };
 

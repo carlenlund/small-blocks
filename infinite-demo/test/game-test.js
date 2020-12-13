@@ -6,16 +6,19 @@ var Chunk2 = require('../src/chunk2');
 describe('Game', function() {
   beforeEach(function() {
     this.game = new Game(null, null, null);
-    // Reset game world.
+    this.game.renderDistance = 0;
     this.game.world = new Chunk();
-    this.game.player.chunk = this.game.world;
+    for (var i = 0; i < this.game.world.neighbors.length; ++i) {
+      this.game.world.createNeighbor(i);
+    }
+    this.game.update();
   });
 
   describe('World', function() {
     describe('Zoom in U-turn', function() {
       beforeEach(function() {
         this.chunk1 = this.game.player.chunk;
-        for (var x = 0; x < Chunk.WIDTH; ++x) {
+        for (var x = 0; x < Game.CHUNK_SIZE; ++x) {
           this.game.setBlock(x, 3);
         }
       });
@@ -23,10 +26,10 @@ describe('Game', function() {
       describe('Left chunk neighbor, Zoom in, Right chunk neighbor', function() {
         beforeEach(function() {
           this.game.player.x = 0;
-          this.game.moveLeft();
-          this.game.zoomIn();
-          this.game.moveRight();
-          this.game.moveRight();
+          this.game.moveLeft(); this.game.update();
+          this.game.zoomIn(); this.game.update();
+          this.game.moveRight(); this.game.update();
+          this.game.moveRight(); this.game.update();
         });
 
         it('connects U-turn chunk with indirect parent', function() {
@@ -37,7 +40,7 @@ describe('Game', function() {
         it('samples blocks from indirect parent', function() {
           var chunk2 = this.game.player.chunk;
           var blocks = [];
-          for (var x = 0; x < Chunk.WIDTH; ++x) {
+          for (var x = 0; x < Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS; ++x) {
             blocks.push(3);
           }
           assert.deepEqual(chunk2.blocks, blocks);
@@ -46,21 +49,21 @@ describe('Game', function() {
 
       describe('Right half of chunk, Zoom in, Left chunk neighbor', function() {
         beforeEach(function() {
-          this.game.player.x = Chunk.WIDTH / 2;
-          this.game.moveRight();
-          this.game.zoomIn();
-          this.game.moveLeft();
+          this.game.player.x = Game.CHUNK_SIZE / 2;
+          this.game.moveRight(); this.game.update();
+          this.game.zoomIn(); this.game.update();
+          this.game.moveLeft(); this.game.update();
         });
-      
+
         it('connects U-turn chunk with indirect parent', function() {
           var chunk2 = this.game.player.chunk;
           assert.equal(chunk2.parent, this.chunk1);
         });
-      
+
         it('samples blocks from indirect parent', function() {
           var chunk2 = this.game.player.chunk;
           var blocks = [];
-          for (var x = 0; x < Chunk.WIDTH; ++x) {
+          for (var x = 0; x < Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS; ++x) {
             blocks.push(3);
           }
           assert.deepEqual(chunk2.blocks, blocks);
@@ -69,21 +72,21 @@ describe('Game', function() {
 
       describe('Right chunk neighbor, Zoom in, Left chunk neighbor', function() {
         beforeEach(function() {
-          this.game.player.x = Chunk.WIDTH - 1;
-          this.game.moveRight();
-          this.game.zoomIn();
-          this.game.moveLeft();
+          this.game.player.x = Game.CHUNK_SIZE - 1;
+          this.game.moveRight(); this.game.update();
+          this.game.zoomIn(); this.game.update();
+          this.game.moveLeft(); this.game.update();
         });
-      
+
         it('connects U-turn chunk with indirect parent', function() {
           var chunk2 = this.game.player.chunk;
           assert.equal(chunk2.parent, this.chunk1);
         });
-      
+
         it('samples blocks from indirect parent', function() {
           var chunk2 = this.game.player.chunk;
           var blocks = [];
-          for (var x = 0; x < Chunk.WIDTH; ++x) {
+          for (var x = 0; x < Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS; ++x) {
             blocks.push(3);
           }
           assert.deepEqual(chunk2.blocks, blocks);
@@ -92,47 +95,22 @@ describe('Game', function() {
     });
 
     describe('Zoom in-out building bug', function() {
-      it('samples all parent blocks for neighbor chunks', function() {
-        this.game.player.x = 0;
-        for (var i = 0; i < 4; ++i) {
-          this.game.zoomIn();
-        }
-        for (var i = 0; i < 4; ++i) {
-          this.game.zoomOut();
-        }
-        this.game.setBlock(this.game.player.x, 3);
-
-        for (var i = 0; i < 3; ++i) {
-          this.game.zoomIn();
-        }
-        this.game.player.x = Chunk.WIDTH / 2;
-        this.game.breakBlock();
-        this.game.zoomIn();
-
-        var leftChunk = this.game.player.chunk.lookUpNeighbor(0);
-        var blocks = [];
-        for (var x = 0; x < Chunk.WIDTH; ++x) {
-          blocks.push(3);
-        }
-        assert.deepEqual(leftChunk.blocks, blocks);
-      });
-
       it('places blocks in right neighbor chunk when zooming out on right edge chunk', function() {
         this.game.player.x = 0;
-        this.game.moveLeft();
-        this.game.zoomOut();
+        this.game.moveLeft(); this.game.update();
+        this.game.zoomOut(); this.game.update();
         this.game.placeBlock(3);
         var chunk = this.game.player.chunk;
-        assert.equal(this.game.player.chunk.blocks[Chunk.WIDTH - 1], 0);
-        this.game.moveRight();
+        assert.equal(this.game.player.chunk.blocks[Game.CHUNK_SIZE - 1], 0);
+        this.game.moveRight(); this.game.update();
         assert.equal(this.game.player.chunk.blocks[0], 3);
       });
 
-      it('hides blocks when zooming out from start chunk', function() {
-        this.game.player.x = 0;
-        this.game.placeBlock(3);
-        this.game.zoomOut();
-        assert.equal(this.game.player.chunk.blocks[0], 0);
+      it('samples child blocks in neighbor chunks when zooming out', function() {
+        this.game.player.chunk.neighbors[0].setBlock(this.game.player.chunk.neighbors[0].size - 1, 3);
+        this.game.zoomOut(); this.game.update();
+        var leftNeighbor = this.game.player.chunk.lookUpNeighbor(0);
+        assert.equal(leftNeighbor.blocks[leftNeighbor.size - 1], 3);
       });
     });
   });
