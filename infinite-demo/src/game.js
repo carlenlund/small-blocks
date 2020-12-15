@@ -7,12 +7,15 @@ function Game(window, canvas, ctx) {
   this.canvas = canvas;
   this.ctx = ctx;
 
-  this.renderDistance = 0;
+  this.renderDistance = 4;
 
-  this.world = null;
+  this.world = new Chunk(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
+  this.initializeWorld(this.world);
+
   this.player = new Player();
   this.player.speed = Game.NUM_SUBDIVISIONS;
-  this.initializeWorld();
+  this.player.chunk = this.world;
+  this.player.x = this.player.chunk.size / 2;
 
   this.pressedKeys = {};
 
@@ -37,7 +40,12 @@ function Game(window, canvas, ctx) {
       if (event.keyCode === 'G'.charCodeAt(0)) {
         this.placeBlock();
       }
+      if (event.keyCode === 'H'.charCodeAt(0)) {
+        // Regenerate chunks where player is located.
+        this.initializeWorld(this.player.chunk);
+      }
 
+      this.update();
       this.render();
     }.bind(this));
 
@@ -145,22 +153,25 @@ Game.prototype.checkPlayerOutOfBounds = function() {
   }
 };
 
-Game.prototype.enforceRenderDistance = function(chunk, renderDistance) {
+Game.prototype.enforceRenderDistance = function(chunk, renderDistance, previousChunk) {
+  previousChunk = previousChunk || null;
   if (renderDistance < 1) {
     return;
   }
   --renderDistance;
   for (var i = 0; i < chunk.neighbors.length; ++i) {
     var neighbor = chunk.lookUpNeighbor(i);
+    if (neighbor === previousChunk) {
+      continue;
+    }
     if (!neighbor) {
       neighbor = chunk.createNeighbor(i);
     }
-    this.enforceRenderDistance(neighbor, renderDistance);
+    this.enforceRenderDistance(neighbor, renderDistance, chunk);
   }
 };
 
 Game.prototype.updateLoop = function() {
-  this.update();
   this.render();
 
   requestAnimationFrame(this.updateLoop.bind(this));
@@ -175,7 +186,7 @@ Game.prototype.render = function() {
   this.ctx.fillStyle = '#000';
   this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-  var scale = 150;
+  var scale = 200;
 
   this.ctx.save();
   this.ctx.translate(
@@ -247,19 +258,15 @@ Game.prototype.renderPlayer = function(player, scale) {
   this.ctx.stroke();
 };
 
-Game.prototype.initializeWorld = function() {
-  this.world = new Chunk(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
-  this.generateBlocks(this.world);
-  for (var i = 0; i < this.world.neighbors.length; ++i) {
-    var chunk = this.world.lookUpNeighbor(i);
-    if (!chunk) {
-      chunk = this.world.createNeighbor(i);
+Game.prototype.initializeWorld = function(chunk) {
+  this.generateBlocks(chunk);
+  for (var i = 0; i < chunk.neighbors.length; ++i) {
+    var neighbor = chunk.lookUpNeighbor(i);
+    if (!neighbor) {
+      neighbor = chunk.createNeighbor(i);
     }
-    this.generateBlocks(chunk);
+    this.generateBlocks(neighbor);
   }
-
-  this.player.chunk = this.world;
-  this.player.x = this.player.chunk.size / 2;
 };
 
 Game.prototype.generateBlocks = function(chunk) {
