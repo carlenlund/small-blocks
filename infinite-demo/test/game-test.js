@@ -107,7 +107,9 @@ describe('Game', function() {
       });
 
       it('samples child blocks in neighbor chunks when zooming out', function() {
+        this.game.player.x = 0;
         this.game.player.chunk.neighbors[0].setBlock(this.game.player.chunk.neighbors[0].size - 1, 3);
+        this.game.player.chunk.neighbors[0].setBlock(this.game.player.chunk.neighbors[0].size - 2, 3);
         this.game.zoomOut(); this.game.update();
         var leftNeighbor = this.game.player.chunk.lookUpNeighbor(0);
         assert.equal(leftNeighbor.blocks[leftNeighbor.size - 1], 3);
