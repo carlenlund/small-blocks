@@ -31,7 +31,7 @@ Chunk2.prototype.setBlock = function(x, block, keepDirty) {
 };
 
 Chunk2.prototype.createParent = function(oneHot) {
-  var chunk = new Chunk(this.size);
+  var chunk = new Chunk2(this.size);
   chunk.oneHot = oneHot;
   this.parent = chunk;
   var index1 = this.oneHot ? 1 : 0;
@@ -42,7 +42,7 @@ Chunk2.prototype.createParent = function(oneHot) {
 };
 
 Chunk2.prototype.createChild = function(index) {
-  var chunk = new Chunk(this.size);
+  var chunk = new Chunk2(this.size);
   chunk.oneHot = index === 1;
   this.children[index] = chunk;
   chunk.parent = this;
@@ -50,7 +50,7 @@ Chunk2.prototype.createChild = function(index) {
 };
 
 Chunk2.prototype.createNeighbor = function(index) {
-  var chunk = new Chunk(this.size);
+  var chunk = new Chunk2(this.size);
   chunk.oneHot = !this.oneHot;
   this.neighbors[index] = chunk;
   chunk.neighbors[Chunk2.getOppositeNeighborIndex(index)] = this;
