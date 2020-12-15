@@ -17,6 +17,8 @@ function Game(window, canvas, ctx) {
   this.player.chunk = this.world;
   this.player.x = this.player.chunk.size / 2;
 
+  this.oneHotOffset = this.player.x;
+
   this.pressedKeys = {};
 
   if (this.window) {
@@ -45,6 +47,9 @@ function Game(window, canvas, ctx) {
         this.initializeWorld(this.player.chunk);
       }
 
+      var roundedOffset = Math.floor(this.oneHotOffset);
+      var oneHot = roundedOffset >= Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS;
+
       this.update();
       this.render();
     }.bind(this));
@@ -63,18 +68,35 @@ Game.prototype.run = function() {
 };
 
 Game.prototype.moveLeft = function() {
+  var previousPlayerX = this.player.x;
   this.player.x -= this.player.speed;
   this.player.x = Math.ceil(this.player.x / Game.NUM_SUBDIVISIONS)
                   * Game.NUM_SUBDIVISIONS;
+
+  this.oneHotOffset += this.player.x - previousPlayerX;
+  this.oneHotOffset =
+      utils.modulo(this.oneHotOffset,
+                   2 * Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
 };
 
 Game.prototype.moveRight = function() {
+  var previousPlayerX = this.player.x;
   this.player.x += this.player.speed;
   this.player.x = Math.floor(this.player.x / Game.NUM_SUBDIVISIONS)
                   * Game.NUM_SUBDIVISIONS;
+
+  this.oneHotOffset += this.player.x - previousPlayerX;
+  this.oneHotOffset =
+      utils.modulo(this.oneHotOffset,
+                   2 * Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
 };
 
 Game.prototype.zoomOut = function() {
+  this.oneHotOffset /= 2;
+  this.oneHotOffset =
+      utils.modulo(this.oneHotOffset,
+                   2 * Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
+
   this.player.x /= 2;
   if (this.player.chunk.oneHot) {
     this.player.x += this.player.chunk.size / 2;
@@ -82,7 +104,9 @@ Game.prototype.zoomOut = function() {
 
   var chunk = this.player.chunk.parent;
   if (!chunk) {
-    chunk = this.player.chunk.createParent();
+    var roundedOffset = Math.floor(this.oneHotOffset);
+    var oneHot = roundedOffset >= Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS;
+    chunk = this.player.chunk.createParent(oneHot);
   }
   chunk.sampleChildren();
 
@@ -92,6 +116,11 @@ Game.prototype.zoomOut = function() {
 };
 
 Game.prototype.zoomIn = function() {
+  this.oneHotOffset *= 2;
+  this.oneHotOffset =
+      utils.modulo(this.oneHotOffset,
+                   2 * Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
+
   var childIndex = this.player.x < this.player.chunk.size / 2 ? 0 : 1;
   if (childIndex === 1) {
     this.player.x -= this.player.chunk.size / 2;

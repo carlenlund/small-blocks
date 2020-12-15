@@ -19,7 +19,6 @@ function Chunk(size) {
   }
 
   this.oneHot = false;
-  this.twoHot = false;
 }
 
 Chunk.prototype.setBlock = function(x, block, keepDirty) {
@@ -31,10 +30,9 @@ Chunk.prototype.setBlock = function(x, block, keepDirty) {
   this.dirtyPositive[x] = true;
 };
 
-Chunk.prototype.createParent = function() {
+Chunk.prototype.createParent = function(oneHot) {
   var chunk = new Chunk(this.size);
-  chunk.oneHot = this.twoHot;
-  chunk.twoHot = this.oneHot;
+  chunk.oneHot = oneHot;
   this.parent = chunk;
   var index1 = this.oneHot ? 1 : 0;
   chunk.children[index1] = this;
@@ -46,7 +44,6 @@ Chunk.prototype.createParent = function() {
 Chunk.prototype.createChild = function(index) {
   var chunk = new Chunk(this.size);
   chunk.oneHot = index === 1;
-  chunk.twoHot = this.oneHot;
   this.children[index] = chunk;
   chunk.parent = this;
   return chunk;
@@ -55,8 +52,6 @@ Chunk.prototype.createChild = function(index) {
 Chunk.prototype.createNeighbor = function(index) {
   var chunk = new Chunk(this.size);
   chunk.oneHot = !this.oneHot;
-  chunk.twoHot = (index === 0 && !this.oneHot && !this.twoHot) ||
-                 (index === 1 && this.oneHot && !this.twoHot);
   this.neighbors[index] = chunk;
   chunk.neighbors[Chunk.getOppositeNeighborIndex(index)] = this;
   return chunk;
@@ -128,7 +123,8 @@ Chunk.prototype.lookUpNeighbor = function(index, isParent, childOneHot, isChild)
       return null;
     }
 
-    childNeighborParent = childNeighbor.createParent();
+    var oneHot = !this.oneHot;
+    childNeighborParent = childNeighbor.createParent(oneHot);
     childNeighborParent.sampleChildren(false);
     childNeighborParent.sampleParent(false);
 
