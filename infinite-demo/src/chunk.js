@@ -6,8 +6,8 @@ function Chunk(size) {
     this.children[i] = null;
   }
   this.neighbors = new Array(2);
-  for (var i = 0; i < this.children.length; ++i) {
-    this.children[i] = null;
+  for (var i = 0; i < this.neighbors.length; ++i) {
+    this.neighbors[i] = null;
   }
 
   this.size = size;

@@ -1,5 +1,5 @@
 var utils = require('./utils');
-var Chunk2 = require('./chunk2');
+var Chunk4 = require('./chunk4');
 var Player = require('./player');
 
 function Game(window, canvas, ctx) {
@@ -9,14 +9,16 @@ function Game(window, canvas, ctx) {
 
   this.renderDistance = 4;
 
-  this.world = new Chunk2(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
+  this.world = new Chunk4(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
   this.initializeWorld(this.world);
 
   this.player = new Player();
   this.player.speed = Game.NUM_SUBDIVISIONS;
   this.player.chunk = this.world;
+  // TODO: player.y
   this.player.x = this.player.chunk.size / 2;
 
+  // TODO: 2D offset
   this.oneHotOffset = this.player.x;
 
   this.pressedKeys = {};
@@ -24,6 +26,12 @@ function Game(window, canvas, ctx) {
   if (this.window) {
     this.window.addEventListener('keydown', function(event) {
       this.pressedKeys[event.keyCode] = true;
+      if (event.keyCode === 'W'.charCodeAt(0)) {
+        this.moveUp();
+      }
+      if (event.keyCode === 'S'.charCodeAt(0)) {
+        this.moveDown();
+      }
       if (event.keyCode === 'A'.charCodeAt(0)) {
         this.moveLeft();
       }
@@ -47,6 +55,7 @@ function Game(window, canvas, ctx) {
         this.initializeWorld(this.player.chunk);
       }
 
+      // TODO: 2D offset
       var roundedOffset = Math.floor(this.oneHotOffset);
       var oneHot = roundedOffset >= Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS;
 
@@ -67,6 +76,15 @@ Game.prototype.run = function() {
   this.updateLoop();
 };
 
+Game.prototype.moveUp = function() {
+  // TODO
+};
+
+Game.prototype.moveDown = function() {
+  // TODO
+};
+
+// TODO
 Game.prototype.moveLeft = function() {
   var previousPlayerX = this.player.x;
   this.player.x -= this.player.speed;
@@ -79,6 +97,7 @@ Game.prototype.moveLeft = function() {
                    2 * Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
 };
 
+// TODO
 Game.prototype.moveRight = function() {
   var previousPlayerX = this.player.x;
   this.player.x += this.player.speed;
@@ -91,6 +110,7 @@ Game.prototype.moveRight = function() {
                    2 * Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
 };
 
+// TODO
 Game.prototype.zoomOut = function() {
   this.oneHotOffset /= 2;
   this.oneHotOffset =
@@ -115,6 +135,7 @@ Game.prototype.zoomOut = function() {
   --this.player.zoom;
 };
 
+// TODO
 Game.prototype.zoomIn = function() {
   this.oneHotOffset *= 2;
   this.oneHotOffset =
@@ -138,14 +159,17 @@ Game.prototype.zoomIn = function() {
   ++this.player.zoom;
 };
 
+// TODO
 Game.prototype.breakBlock = function() {
   this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS), 0);
 };
 
+// TODO
 Game.prototype.placeBlock = function() {
   this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS), 3);
 };
 
+// TODO
 Game.prototype.setBlock = function(x, value) {
   var chunk;
   if (x >= Game.CHUNK_SIZE) {
@@ -162,6 +186,7 @@ Game.prototype.setBlock = function(x, value) {
   }
 };
 
+// TODO
 Game.prototype.checkPlayerOutOfBounds = function() {
   while (this.player.x < 0) {
     var chunk = this.player.chunk.lookUpNeighbor(0);
@@ -182,6 +207,7 @@ Game.prototype.checkPlayerOutOfBounds = function() {
   }
 };
 
+// TODO
 Game.prototype.enforceRenderDistance = function(chunk, renderDistance, previousChunk) {
   previousChunk = previousChunk || null;
   if (renderDistance < 1) {
@@ -211,6 +237,7 @@ Game.prototype.update = function() {
   this.enforceRenderDistance(this.player.chunk, this.renderDistance);
 };
 
+// TODO
 Game.prototype.render = function() {
   this.ctx.fillStyle = '#000';
   this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -222,7 +249,7 @@ Game.prototype.render = function() {
       this.canvas.width / 2 - this.player.x * scale / this.player.chunk.size,
       0);
 
-  this.renderChunk(this.player.chunk, 0, this.renderDistance, scale, null);
+  // this.renderChunk(this.player.chunk, 0, this.renderDistance, scale, null);
   this.renderPlayer(this.player, scale);
 
   this.ctx.restore();
@@ -231,6 +258,7 @@ Game.prototype.render = function() {
   //             ', Zoom: ' + this.player.zoom);
 };
 
+// TODO
 Game.prototype.renderChunk = function(chunk, x, depth, scale, previousChunk) {
   if (depth < 0) {
     return;
@@ -274,6 +302,7 @@ Game.prototype.renderChunk = function(chunk, x, depth, scale, previousChunk) {
   }
 };
 
+// TODO
 Game.prototype.renderPlayer = function(player, scale) {
   this.ctx.fillStyle = '#ff0';
   this.ctx.strokeStyle = '#000';
@@ -287,6 +316,7 @@ Game.prototype.renderPlayer = function(player, scale) {
   this.ctx.stroke();
 };
 
+// TODO
 Game.prototype.initializeWorld = function(chunk) {
   this.generateBlocks(chunk);
   for (var i = 0; i < chunk.neighbors.length; ++i) {
@@ -298,6 +328,7 @@ Game.prototype.initializeWorld = function(chunk) {
   }
 };
 
+// TODO
 Game.prototype.generateBlocks = function(chunk) {
   // TODO: This should take into account the current zoom level.
   for (var i = 0; i < chunk.blocks.length; ++i) {

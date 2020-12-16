@@ -1,9 +1,8 @@
-var Game = require('./game');
-var Game2 = require('./game2');
+var Game = require('./game2');
 
 var canvas = document.querySelector('#canvas');
 canvas.width = 650;
-canvas.height = 300;
+canvas.height = 150;
 resizeCanvas();
 
 function resizeCanvas() {
@@ -14,8 +13,7 @@ function resizeCanvas() {
 
 var ctx = canvas.getContext('2d');
 
-// var game = new Game(window, canvas, ctx);
-var game = new Game2(window, canvas, ctx);
+var game = new Game(window, canvas, ctx);
 game.run();
 
 window.game = game;  // For debugging
