@@ -9,14 +9,14 @@ function Game(window, canvas, ctx) {
 
   this.renderDistance = 4;
 
-  this.world = new Chunk4(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
-  this.initializeWorld(this.world);
+  // this.world = new Chunk4(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
+  // this.initializeWorld(this.world);
 
   this.player = new Player();
   this.player.speed = Game.NUM_SUBDIVISIONS;
   this.player.chunk = this.world;
   // TODO: player.y
-  this.player.x = this.player.chunk.size / 2;
+  // this.player.x = this.player.chunk.size / 2;
 
   // TODO: 2D offset
   this.oneHotOffset = this.player.x;
@@ -159,18 +159,20 @@ Game.prototype.zoomIn = function() {
   ++this.player.zoom;
 };
 
-// TODO
 Game.prototype.breakBlock = function() {
-  this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS), 0);
+  this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS),
+                Math.round(this.player.y / Game.NUM_SUBDIVISIONS),
+                0);
 };
 
-// TODO
 Game.prototype.placeBlock = function() {
-  this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS), 3);
+  this.setBlock(Math.round(this.player.x / Game.NUM_SUBDIVISIONS),
+                Math.round(this.player.y / Game.NUM_SUBDIVISIONS),
+                3);
 };
 
-// TODO
-Game.prototype.setBlock = function(x, value) {
+Game.prototype.setBlock = function(x, y, value) {
+  // TODO
   var chunk;
   if (x >= Game.CHUNK_SIZE) {
     x -= Game.CHUNK_SIZE;
@@ -181,8 +183,13 @@ Game.prototype.setBlock = function(x, value) {
   } else {
     chunk = this.player.chunk;
   }
+
   for (var i = 0; i < Game.NUM_SUBDIVISIONS; ++i) {
-    chunk.setBlock(x * Game.NUM_SUBDIVISIONS + i, value);
+    for (var j = 0; j < Game.NUM_SUBDIVISIONS; ++j) {
+      chunk.setBlock(x * Game.NUM_SUBDIVISIONS + i,
+                     y * Game.NUM_SUBDIVISIONS + i,
+                     value);
+    }
   }
 };
 
@@ -233,8 +240,9 @@ Game.prototype.updateLoop = function() {
 };
 
 Game.prototype.update = function() {
-  this.checkPlayerOutOfBounds();
-  this.enforceRenderDistance(this.player.chunk, this.renderDistance);
+  // TODO
+  // this.checkPlayerOutOfBounds();
+  // this.enforceRenderDistance(this.player.chunk, this.renderDistance);
 };
 
 // TODO

@@ -43,6 +43,7 @@ function Chunk4(size) {
     }
   }
 
+  // TODO: 2D
   this.oneHot = false;
 }
 
