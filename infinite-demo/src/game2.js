@@ -9,7 +9,7 @@ function Game(window, canvas, ctx) {
 
   this.renderDistance = 4;
 
-  // this.world = new Chunk4(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
+  this.world = new Chunk4(Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS);
   // this.initializeWorld(this.world);
 
   this.player = new Player();
