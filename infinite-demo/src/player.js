@@ -3,8 +3,8 @@ function Player() {
   this.speed = 1;
   this.chunk = null;
   this.x = 0;
+  this.y = 0;
 
-  this.chunkX = 0;
   this.zoom = 0;
 }
 

@@ -47,9 +47,6 @@ function Game(window, canvas, ctx) {
         this.initializeWorld(this.player.chunk);
       }
 
-      var roundedOffset = Math.floor(this.oneHotOffset);
-      var oneHot = roundedOffset >= Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS;
-
       this.update();
       this.render();
     }.bind(this));

@@ -1,18 +1,19 @@
 // Quadtree chunk C, consisting of 4 child chunks:
-// C C
-// C C
+// c   c
+//  \ /
+//   C
+//  / \
+// c   c
 //
 // With size * size number of blocks:
-// B B . . . B (size columns)
+// B B . . . B
 // B B       B
 // .   .     .
 // .     .   .
 // .       . .
-// B B . . . B (size * size blocks)
-// (size
-//  rows)
+// B B . . . B
 //
-// Size is a multiple of 2.
+// Size must be a multiple of 2.
 function Chunk4(size) {
   this.parent = null;
 
@@ -25,10 +26,14 @@ function Chunk4(size) {
   }
 
   // Neighbor indices:
-  //   0
-  // 3 C 1
-  //   2
-  this.neighbors = new Array(4);
+  // 0 1 2
+  // 3 C 5
+  // 6 7 8
+  // Access with (neighborX, neighborY):
+  // (-1,-1)  (0,-1)  (1,-1)
+  // (-1, 0)  (0, 0)  (1, 0)
+  // (-1, 1)  (0, 1)  (1, 1)
+  this.neighbors = new Array(3 * 3);
   for (var i = 0; i < this.neighbors.length; ++i) {
     this.neighbors[i] = null;
   }
@@ -43,9 +48,13 @@ function Chunk4(size) {
     }
   }
 
-  // TODO: 2D
-  this.oneHot = false;
+  this.oneHotX = false;
+  this.oneHotY = false;
 }
+
+Chunk4.prototype.getBlock = function(x, y) {
+  return this.blocks[y * this.size + x];
+};
 
 Chunk4.prototype.setBlock = function(x, y, block, keepDirty) {
   if (keepDirty &&
@@ -58,60 +67,99 @@ Chunk4.prototype.setBlock = function(x, y, block, keepDirty) {
   this.dirtyPositive[y * this.size + x] = true;
 };
 
-// TODO
-Chunk4.prototype.createParent = function(oneHot) {
+Chunk4.prototype.createParent = function(oneHotX, oneHotY) {
   var chunk = new Chunk4(this.size);
-  chunk.oneHot = oneHot;
+  chunk.oneHotX = oneHotX;
+  chunk.oneHotY = oneHotY;
   this.parent = chunk;
-  var index1 = this.oneHot ? 1 : 0;
-  chunk.children[index1] = this;
-  var index2 = Chunk4.getOppositeNeighborIndex(index1);
-  chunk.children[index2] = this.lookUpNeighbor(index2);
+  if (!this.oneHotX && !this.oneHotY) {
+    chunk.children[0] = this;
+    chunk.children[1] = this.lookUpNeighbor(1, 0);
+    chunk.children[2] = this.lookUpNeighbor(0, 1);
+    chunk.children[3] = this.lookUpNeighbor(1, 1);
+  } else if (this.oneHotX && !this.oneHotY) {
+    chunk.children[0] = this.lookUpNeighbor(-1, 0);
+    chunk.children[1] = this;
+    chunk.children[2] = this.lookUpNeighbor(-1, 1);
+    chunk.children[3] = this.lookUpNeighbor(0, 1);
+  } else if (!this.oneHotX && this.oneHotY) {
+    chunk.children[0] = this.lookUpNeighbor(0, -1);
+    chunk.children[1] = this.lookUpNeighbor(1, -1);
+    chunk.children[2] = this;
+    chunk.children[3] = this.lookUpNeighbor(1, 0);
+  } else if (this.oneHotX && this.oneHotY) {
+    chunk.children[0] = this.lookUpNeighbor(-1, -1);
+    chunk.children[1] = this.lookUpNeighbor(0, -1);
+    chunk.children[2] = this.lookUpNeighbor(-1, 0);
+    chunk.children[3] = this;
+  }
   return chunk;
 };
 
-// TODO
 Chunk4.prototype.createChild = function(index) {
   var chunk = new Chunk4(this.size);
-  chunk.oneHot = index === 1;
+  chunk.oneHotX = index % 2 === 1;
+  chunk.oneHotY = index >= 2;
   this.children[index] = chunk;
   chunk.parent = this;
   return chunk;
 };
 
-Chunk4.prototype.createNeighbor = function(index) {
+Chunk4.prototype.createNeighbor = function(neighborX, neighborY) {
+  if (neighborX === 0 && neighborY === 0) {
+    throw new Error('Invalid neighbor index (' + neighborX + ', ' + neighborY + ')');
+  }
+
   var chunk = new Chunk4(this.size);
-  // TODO
-  chunk.oneHot = !this.oneHot;
-  this.neighbors[index] = chunk;
-  chunk.neighbors[Chunk4.getOppositeNeighborIndex(index)] = this;
+  if (neighborX !== 0) {
+    chunk.oneHotX = !this.oneHotX;
+  }
+  if (neighborY !== 0) {
+    chunk.oneHotY = !this.oneHotY;
+  }
+  this.neighbors[Chunk4.getNeighborIndex(neighborX, neighborY)] = chunk;
+  chunk.neighbors[Chunk4.getNeighborIndex(-neighborX, -neighborY)] = this;
   return chunk;
 };
 
-Chunk4.getOppositeNeighborIndex = function(index) {
-  switch (index) {
-    case 0: return 2;
-    case 1: return 3;
-    case 2: return 0;
-    case 3: return 1;
-  };
+Chunk4.getNeighborIndex = function(neighborX, neighborY) {
+  return (neighborY + 1) * 3 + (neighborX + 1);
 };
 
-// TODO
+// Looks up a neighbor chunk given its relative offset.
+// Returns a new neighbor if none exists.
 // isParent and childOneHot used only for finding parent neighbor children.
-Chunk4.prototype.lookUpNeighbor = function(index, isParent, childOneHot, isChild) {
+Chunk4.prototype.lookUpNeighbor = function(neighborX, neighborY,
+                                           isParent, isChild,
+                                           childOneHotX, childOneHotY) {
+  if (Math.abs(neighborX) > 1) {
+    throw new Error('Neighbor x offset ' + neighborX + ' too large');
+  }
+  if (Math.abs(neighborY) > 1) {
+    throw new Error('Neighbor y offset ' + neighborY + ' too large');
+  }
+
+  if (neighborX === 0 && neighborY === 0) {
+    return this;
+  }
+
   isParent = typeof(isParent) === 'undefined' ? false : isParent;
-  childOneHot = typeof(childOneHot) === 'undefined' ? false : childOneHot;
+  isChild = typeof(isChild) === 'undefined' ? false : isChild;
+  childOneHotX = typeof(childOneHotX) === 'undefined' ? false : childOneHotX;
+  childOneHotY = typeof(childOneHotY) === 'undefined' ? false : childOneHotY;
 
   if (isParent &&
-      ((!childOneHot && index === 1) ||
-       (childOneHot && index === 0))) {
+      ((!childOneHotX && neighborX === 1 &&
+           ((!childOneHotY && neighborY === 1) || (childOneHotY && neighborY === -1))) ||
+       (childOneHotX && neighborX === -1 &&
+           ((!childOneHotY && neighborY === 1) || (childOneHotY && neighborY === -1))))) {
     this.sampleChildren(false);
     this.sampleParent(false);
     return this;
   }
-  if (this.neighbors[index]) {
-    var neighbor = this.neighbors[index];
+
+  var neighbor = this.neighbors[Chunk4.getNeighborIndex(neighborX, neighborY)];
+  if (neighbor) {
     // Resample parents last to overwrite child changes.
     neighbor.sampleChildren(true);
     neighbor.sampleParent(true);
@@ -120,20 +168,170 @@ Chunk4.prototype.lookUpNeighbor = function(index, isParent, childOneHot, isChild
 
   // Find neighbor indirectly through parent.
   if (this.parent && !isChild) {
-    var parentNeighbor = this.parent.lookUpNeighbor(index, true, this.oneHot,
-                                                    false);
+    var parentNeighbor = this.parent.lookUpNeighbor(neighborX, neighborY,
+                                                    true, false,
+                                                    this.oneHotX, this.oneHotY);
     if (!parentNeighbor) {
+      // TODO: Try looking up via child instead.
       return null;
     }
 
     var parentNeighborChildIndex;
-    if ((!this.oneHot && index === 1) ||
-        (this.oneHot && index === 0)) {
-      // We have the same parent as the target chunk, so keep index.
-      parentNeighborChildIndex = index;
+    if ((!this.oneHotX && neighborX === 1 &&
+            ((!this.oneHotY && neighborY === 1) || (this.oneHotY && neighborY === -1))) ||
+        (this.oneHotX && neighborX === -1 &&
+            ((!this.oneHotY && neighborY === 1) || (this.oneHotY && neighborY === -1)))) {
+      // We have the same parent as the target chunk, so find index for
+      // children for current chunk.
+      if (!this.oneHotX && !this.oneHotY) {
+        if (neighborX === 1 && neighborY === 0) {
+          parentNeighborChildIndex = 1;
+        } else if (neighborX === 0 && neighborY === 1) {
+          parentNeighborChildIndex = 2;
+        } else if (neighborX === 1 && neighborY === 1) {
+          parentNeighborChildIndex = 3;
+        }
+      } else if (this.oneHotX && !this.oneHotY) {
+        if (neighborX === -1 && neighborY === 0) {
+          parentNeighborChildIndex = 0;
+        } else if (neighborX === -1 && neighborY === 1) {
+          parentNeighborChildIndex = 2;
+        } else if (neighborX === 0 && neighborY === 1) {
+          parentNeighborChildIndex = 3;
+        }
+      } else if (!this.oneHotX && this.oneHotY) {
+        if (neighborX === 0 && neighborY === -1) {
+          parentNeighborChildIndex = 0;
+        } else if (neighborX === 1 && neighborY === -1) {
+          parentNeighborChildIndex = 1;
+        } else if (neighborX === 1 && neighborY === 0) {
+          parentNeighborChildIndex = 3;
+        }
+      } else if (this.oneHotX && this.oneHotY) {
+        if (neighborX === -1 && neighborY === -1) {
+          parentNeighborChildIndex = 0;
+        } else if (neighborX === 0 && neighborY === -1) {
+          parentNeighborChildIndex = 1;
+        } else if (neighborX === -1 && neighborY === 0) {
+          parentNeighborChildIndex = 2;
+        }
+      }
     } else {
-      // Use index in opposite direction to move towards target chunk.
-      parentNeighborChildIndex = index === 0 ? 1 : 0;
+      // We don't have the same parent as the target chunk, so find index in
+      // opposite direction to move towards target chunk.
+      if (!this.oneHotX && !this.oneHotY) {
+        if (neighborX === -1 && neighborY === -1) {
+          // 0 1  
+          // 2 3  
+          //     C c
+          //     c c
+          parentNeighborChildIndex = 3;
+        } else if (neighborX === 0 && neighborY === -1) {
+          //     0 1  
+          //     2 3  
+          //     C c
+          //     c c
+          parentNeighborChildIndex = 2;
+        } else if (neighborX === 1 && neighborY === -1) {
+          //     0 1  
+          //     2 3  
+          //     C c
+          //     c c
+          parentNeighborChildIndex = 3;
+        } else if (neighborX === -1 && neighborY === 0) {
+          // 0 1 C c
+          // 2 3 c c
+          parentNeighborChildIndex = 1;
+        } else if (neighborX === -1 && neighborY === 1) {
+          // 0 1 C c
+          // 2 3 c c
+          parentNeighborChildIndex = 3;
+        }
+      } else if (this.oneHotX && !this.oneHotY) {
+        if (neighborX === -1 && neighborY === -1) {
+          // 0 1  
+          // 2 3  
+          // c C
+          // c c
+          parentNeighborChildIndex = 2;
+        } else if (neighborX === 0 && neighborY === -1) {
+          // 0 1  
+          // 2 3  
+          // c C
+          // c c
+          parentNeighborChildIndex = 3;
+        } else if (neighborX === 1 && neighborY === -1) {
+          //     0 1  
+          //     2 3  
+          // c C
+          // c c
+          parentNeighborChildIndex = 2;
+        } else if (neighborX === 1 && neighborY === 0) {
+          // c C 0 1
+          // c c 2 3
+          parentNeighborChildIndex = 0;
+        } else if (neighborX === 1 && neighborY === 1) {
+          // c C 0 1
+          // c c 2 3
+          parentNeighborChildIndex = 2;
+        }
+      } else if (!this.oneHotX && this.oneHotY) {
+        if (neighborX === -1 && neighborY === -1) {
+          // 0 1 c c
+          // 2 3 C c
+          parentNeighborChildIndex = 1;
+        } else if (neighborX === -1 && neighborY === 0) {
+          // 0 1 c c
+          // 2 3 C c
+          parentNeighborChildIndex = 3;
+        } else if (neighborX === -1 && neighborY === 1) {
+          //     c c
+          //     C c
+          // 0 1
+          // 2 3
+          parentNeighborChildIndex = 1;
+        } else if (neighborX === 0 && neighborY === 1) {
+          // c c
+          // C c
+          // 0 1
+          // 2 3
+          parentNeighborChildIndex = 0;
+        } else if (neighborX === 1 && neighborY === 1) {
+          // c c
+          // C c
+          // 0 1
+          // 2 3
+          parentNeighborChildIndex = 1;
+        }
+      } else if (this.oneHotX && this.oneHotY) {
+        if (neighborX === 1 && neighborY === -1) {
+          // c c 0 1
+          // c C 2 3
+          parentNeighborChildIndex = 0;
+        } else if (neighborX === 1 && neighborY === 0) {
+          // c c 0 1
+          // c C 2 3
+          parentNeighborChildIndex = 2;
+        } else if (neighborX === -1 && neighborY === 1) {
+          // c c
+          // c C
+          // 0 1
+          // 2 3
+          parentNeighborChildIndex = 0;
+        } else if (neighborX === 0 && neighborY === 1) {
+          // c c
+          // c C
+          // 0 1
+          // 2 3
+          parentNeighborChildIndex = 1;
+        } else if (neighborX === 1 && neighborY === 1) {
+          // c c
+          // c C
+          //     0 1
+          //     2 3
+          parentNeighborChildIndex = 0;
+        }
+      }
     }
     var parentNeighborChild = parentNeighbor.children[parentNeighborChildIndex];
     if (!parentNeighborChild) {
@@ -143,27 +341,89 @@ Chunk4.prototype.lookUpNeighbor = function(index, isParent, childOneHot, isChild
     parentNeighborChild.sampleChildren(false);
     parentNeighborChild.sampleParent(false);
 
-    this.neighbors[index] = parentNeighborChild;
-    parentNeighborChild.neighbors[Chunk4.getOppositeNeighborIndex(index)] = this;
+    this.neighbors[Chunk4.getNeighborIndex(neighborX, neighborY)] = parentNeighborChild;
+    parentNeighborChild.neighbors[Chunk4.getNeighborIndex(-neighborX, -neighborY)] = this;
 
     return parentNeighborChild;
   }
 
   // Find neighbor indirectly through child.
-  if (this.children[index] && !isParent) {
-    var child = this.children[index];
-    var childNeighbor = child.lookUpNeighbor(index, false, this.oneHot, true);
+  if (!isParent) {
+    var childIndex = Chunk4.getNeighborIndex(neighborX, neighborY);
+    if (neighborX === -1 && neighborY === -1) {
+      // c c
+      // c C
+      //     0 1  
+      //     2 3  
+      childIndex = 0;
+    } else if (neighborX === 0 && neighborY === -1) {
+      // c c
+      // C c
+      // 0 1  
+      // 2 3  
+      // TODO: Do we need to test if child index 1 works too?
+      childIndex = 2;
+    } else if (neighborX === 1 && neighborY === -1) {
+      //     c c
+      //     C c
+      // 0 1  
+      // 2 3  
+      childIndex = 1;
+    } else if (neighborX === -1 && neighborY === 0) {
+      // c C 0 1
+      // c c 2 3
+      // TODO: Do we need to test if child index 2 works too?
+      childIndex = 0;
+    } else if (neighborX === 1 && neighborY === 0) {
+      // 0 1 C c
+      // 2 3 c c
+      // TODO: Do we need to test if child index 3 works too?
+      childIndex = 1;
+    } else if (neighborX === -1 && neighborY === 1) {
+      //     0 1
+      //     2 3
+      // c C
+      // C c
+      childIndex = 2;
+    } else if (neighborX === 0 && neighborY === 1) {
+      // 0 1
+      // 2 3
+      // C c
+      // C c
+      // TODO: Do we need to test if child index 3 works too?
+      childIndex = 2;
+    } else if (neighborX === 1 && neighborY === 1) {
+      // 0 1
+      // 2 3
+      //     C c
+      //     c c
+      childIndex = 3;
+    }
+    
+    var child = this.children[childIndex];
+    if (!child) {
+      // TODO: Try looking up via parent instead.
+      return null;
+    }
+    var childNeighbor = child.lookUpNeighbor(neighborX, neighborY,
+                                             false, true,
+                                             this.oneHotX, this.oneHotY);
     if (!childNeighbor) {
+      // TODO: Try looking up via parent instead.
       return null;
     }
 
-    var oneHot = !this.oneHot;
-    childNeighborParent = childNeighbor.createParent(oneHot);
+    var childNeighborParent = childNeighbor.parent;
+    if (!childNeighborParent) {
+      var oneHotX = neighborX !== 0 ? !this.oneHotX : this.oneHotX;
+      var oneHotY = neighborY !== 0 ? !this.oneHotY : this.oneHotY;
+      childNeighborParent = childNeighbor.createParent(oneHotX, oneHotY);
+    }
     childNeighborParent.sampleChildren(false);
     childNeighborParent.sampleParent(false);
 
-    this.neighbors[index] = childNeighborParent;
-    childNeighborParent.neighbors[Chunk4.getOppositeNeighborIndex(index)] = this;
+    this.neighbors[Chunk4.getNeighborIndex(neighborX, neighborY)] = childNeighborParent;
+    childNeighborParent.neighbors[Chunk4.getNeighborIndex(-neighborX, -neighborY)] = this;
 
     return childNeighborParent;
   }
@@ -171,27 +431,37 @@ Chunk4.prototype.lookUpNeighbor = function(index, isParent, childOneHot, isChild
   return null;
 };
 
-// TODO
 Chunk4.prototype.sampleParent = function() {
   if (!this.parent) {
     return;
   }
 
-  var sampleStart;
-  var sampleEnd;
-  if (!this.oneHot) {
-    sampleStart = 0;
-    sampleEnd = this.size / 2;
+  var sampleStartX;
+  var sampleStartY;
+  var sampleEndX;
+  var sampleEndY;
+  if (!this.oneHotX) {
+    sampleStartX = 0;
+    sampleEndX = this.size / 2;
   } else {
-    sampleStart = this.size / 2;
-    sampleEnd = this.size;
+    sampleStartX = this.size / 2;
+    sampleEndX = this.size;
   }
-  this.sampleDirtyPositive(this.parent, sampleStart, sampleEnd,
+  if (!this.oneHotY) {
+    sampleStartY = 0;
+    sampleEndY = this.size / 2;
+  } else {
+    sampleStartY = this.size / 2;
+    sampleEndY = this.size;
+  }
+
+  this.sampleDirtyPositive(this.parent,
+                           sampleStartX, sampleStartY,
+                           sampleEndX, sampleEndY,
+                           0, this.size,
                            0, this.size);
-  this.parent.setDirtyPositive(sampleStart, sampleEnd, false);
 };
 
-// TODO
 Chunk4.prototype.sampleChildren = function(keepDirty) {
   for (var i = 0; i < this.children.length; ++i) {
     var child = this.children[i];
@@ -199,83 +469,138 @@ Chunk4.prototype.sampleChildren = function(keepDirty) {
       continue;
     }
 
-    var start;
-    var end;
-    if (i === 0) {
-      start = 0;
-      end = this.size / 2;
+    var startX;
+    var startY;
+    var endX;
+    var endY;
+    if (i % 2 === 0) {
+      startX = 0;
+      endX = this.size / 2;
     } else {
-      start = this.size / 2;
-      end = this.size;
+      startX = this.size / 2;
+      endX = this.size;
     }
-    this.sampleDirtyNegative(child, 0, this.size, start, end, keepDirty);
-    child.setDirtyNegative(0, this.size, false);
+    if (i < 2) {
+      startY = 0;
+      endY = this.size / 2;
+    } else {
+      startY = this.size / 2;
+      endY = this.size;
+    }
+
+    this.sampleDirtyNegative(child,
+                             0, 0,
+                             this.size, this.size,
+                             startX, startY,
+                             endX, endY,
+                             keepDirty);
   }
 };
 
-// TODO
-Chunk4.prototype.sampleDirtyPositive = function(chunk, sampleStart, sampleEnd,
-                                                start, end,
+Chunk4.prototype.sampleDirtyPositive = function(chunk,
+                                                sampleStartX, sampleStartY,
+                                                sampleEndX, sampleEndY,
+                                                startX, startY,
+                                                endX, endY,
                                                 keepDirty) {
-  var sampleWidth = (sampleEnd - sampleStart) / (end - start);
-  for (var i = 0; i < end - start; ++i) {
-    var sampleIndex = sampleStart + Math.floor(i * sampleWidth);
-    if (sampleWidth === 2) {
-      if (chunk.dirtyPositive[sampleIndex] ||
-          chunk.dirtyPositive[sampleIndex + 1]) {
-        var block;
-        if (chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + 1]) {
-          block = chunk.blocks[sampleIndex];
-        } else {
-          block = 0;
-        }
-        this.setBlock(start + i, block, keepDirty);
-        this.dirtyNegative[start + i] = false;
-      }
-    } else if (chunk.dirtyPositive[sampleIndex]) {
-      this.setBlock(start + i, chunk.blocks[sampleIndex], keepDirty);
-      this.dirtyNegative[start + i] = false;
+  // FIXME: The following values are = Infinity
+  var sampleWidth = (sampleEndX - sampleStartX) / (endX - startX);
+  var sampleHeight = (sampleEndY - sampleStartY) / (endY - startY);
+
+  for (var i = 0; i < endY - startY; ++i) {
+    for (var j = 0; j < endX - startX; ++j) {
+      var sampleX = sampleStartX + Math.floor(j * sampleWidth);
+      var sampleY = sampleStartY + Math.floor(i * sampleHeight);
+      var sampleIndex = sampleY * this.size + sampleX;
+
+      // if (sampleWidth === 2 && sampleHeight === 2) {
+      //   if (chunk.dirtyPositive[sampleIndex] ||
+      //       chunk.dirtyPositive[sampleIndex + 1] ||
+      //       chunk.dirtyPositive[sampleIndex + this.size] ||
+      //       chunk.dirtyPositive[sampleIndex + this.size + 1]) {
+      //     var block;
+      //     if (chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + 1] &&
+      //         chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size] &&
+      //         chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size + 1]) {
+      //       block = chunk.blocks[sampleIndex];
+      //     } else {
+      //       block = 0;
+      //     }
+      //     this.setBlock(startX + j, startY + i, block, keepDirty);
+      //     this.dirtyNegative[(startY + i) * this.size + startX + j] = false;
+      //   }
+      // } else if (chunk.dirtyPositive[sampleIndex]) {
+        this.setBlock(startX + j, startY + i, chunk.blocks[sampleIndex], keepDirty);
+        this.dirtyNegative[(startY + i) * this.size + startX + j] = false;
+      // }
     }
   }
+
+  chunk.setDirtyPositive(sampleStartX, sampleStartY,
+                         sampleEndX, sampleEndY,
+                         false);
 };
 
-// TODO
-Chunk4.prototype.sampleDirtyNegative = function(chunk, sampleStart, sampleEnd,
-                                                start, end,
+Chunk4.prototype.sampleDirtyNegative = function(chunk,
+                                                sampleStartX, sampleStartY,
+                                                sampleEndX, sampleEndY,
+                                                startX, startY,
+                                                endX, endY,
                                                 keepDirty) {
-  var sampleWidth = (sampleEnd - sampleStart) / (end - start);
-  for (var i = 0; i < end - start; ++i) {
-    var sampleIndex = sampleStart + Math.floor(i * sampleWidth);
-    if (sampleWidth === 2) {
-      if (chunk.dirtyNegative[sampleIndex] ||
-          chunk.dirtyNegative[sampleIndex + 1]) {
-        var block;
-        if (chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + 1]) {
-          block = chunk.blocks[sampleIndex];
-        } else {
-          block = 0;
+  var sampleWidth = (sampleEndX - sampleStartX) / (endX - startX);
+  var sampleHeight = (sampleEndY - sampleStartY) / (endY - startY);
+
+  for (var i = 0; i < endY - startY; ++i) {
+    for (var j = 0; j < endX - startX; ++j) {
+      var sampleX = sampleStartX + Math.floor(j * sampleWidth);
+      var sampleY = sampleStartY + Math.floor(i * sampleHeight);
+      var sampleIndex = sampleY * this.size + sampleX;
+
+      if (sampleWidth === 2 && sampleHeight === 2) {
+        if (chunk.dirtyNegative[sampleIndex] ||
+            chunk.dirtyNegative[sampleIndex + 1] ||
+            chunk.dirtyNegative[sampleIndex + this.size] ||
+            chunk.dirtyNegative[sampleIndex + this.size + 1]) {
+          var block;
+          if (chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + 1] &&
+              chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size] &&
+              chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size + 1]) {
+            block = chunk.blocks[sampleIndex];
+          } else {
+            block = 0;
+          }
+          this.setBlock(startX + j, startY + i, block, keepDirty);
+          this.dirtyPositive[(startY + i) * this.size + startX + j] = false;
         }
-        this.setBlock(start + i, block, keepDirty);
-        this.dirtyPositive[start + i] = false;
+      } else if (chunk.dirtyNegative[sampleIndex]) {
+        this.setBlock(startX + j, startY + i, chunk.blocks[sampleIndex], keepDirty);
+        this.dirtyPositive[(startY + i) * this.size + startX + j] = false;
       }
-    } else if (chunk.dirtyNegative[sampleIndex]) {
-      this.setBlock(start + i, chunk.blocks[sampleIndex], keepDirty);
-      this.dirtyPositive[start + i] = false;
+    }
+  }
+
+  chunk.setDirtyNegative(sampleStartX, sampleStartY,
+                         sampleEndX, sampleEndY,
+                         false);
+};
+
+Chunk4.prototype.setDirtyNegative = function(startX, startY,
+                                             endX, endY,
+                                             value) {
+  for (var i = startY; i < endY; ++i) {
+    for (var j = startX; j < endX; ++j) {
+      this.dirtyNegative[i * this.size + j] = value;
     }
   }
 };
 
-// TODO
-Chunk4.prototype.setDirtyNegative = function(start, end, value) {
-  for (var i = start; i < end; ++i) {
-    this.dirtyNegative[i] = value;
-  }
-};
-
-// TODO
-Chunk4.prototype.setDirtyPositive = function(start, end, value) {
-  for (var i = start; i < end; ++i) {
-    this.dirtyPositive[i] = value;
+Chunk4.prototype.setDirtyPositive = function(startX, startY,
+                                             endX, endY,
+                                             value) {
+  for (var i = startY; i < endY; ++i) {
+    for (var j = startX; j < endX; ++j) {
+      this.dirtyPositive[i * this.size + j] = value;
+    }
   }
 };
 
