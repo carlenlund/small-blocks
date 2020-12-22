@@ -431,7 +431,7 @@ Chunk4.prototype.lookUpNeighbor = function(neighborX, neighborY,
   return null;
 };
 
-Chunk4.prototype.sampleParent = function() {
+Chunk4.prototype.sampleParent = function(keepDirty) {
   if (!this.parent) {
     return;
   }
@@ -458,8 +458,9 @@ Chunk4.prototype.sampleParent = function() {
   this.sampleDirtyPositive(this.parent,
                            sampleStartX, sampleStartY,
                            sampleEndX, sampleEndY,
-                           0, this.size,
-                           0, this.size);
+                           0, 0,
+                           this.size, this.size,
+                           keepDirty);
 };
 
 Chunk4.prototype.sampleChildren = function(keepDirty) {
@@ -513,26 +514,26 @@ Chunk4.prototype.sampleDirtyPositive = function(chunk,
       var sampleY = sampleStartY + Math.floor(i * sampleHeight);
       var sampleIndex = sampleY * this.size + sampleX;
 
-      // if (sampleWidth === 2 && sampleHeight === 2) {
-      //   if (chunk.dirtyPositive[sampleIndex] ||
-      //       chunk.dirtyPositive[sampleIndex + 1] ||
-      //       chunk.dirtyPositive[sampleIndex + this.size] ||
-      //       chunk.dirtyPositive[sampleIndex + this.size + 1]) {
-      //     var block;
-      //     if (chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + 1] &&
-      //         chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size] &&
-      //         chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size + 1]) {
-      //       block = chunk.blocks[sampleIndex];
-      //     } else {
-      //       block = 0;
-      //     }
-      //     this.setBlock(startX + j, startY + i, block, keepDirty);
-      //     this.dirtyNegative[(startY + i) * this.size + startX + j] = false;
-      //   }
-      // } else if (chunk.dirtyPositive[sampleIndex]) {
+      if (sampleWidth === 2 && sampleHeight === 2) {
+        if (chunk.dirtyPositive[sampleIndex] ||
+            chunk.dirtyPositive[sampleIndex + 1] ||
+            chunk.dirtyPositive[sampleIndex + this.size] ||
+            chunk.dirtyPositive[sampleIndex + this.size + 1]) {
+          var block;
+          if (chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + 1] &&
+              chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size] &&
+              chunk.blocks[sampleIndex] === chunk.blocks[sampleIndex + this.size + 1]) {
+            block = chunk.blocks[sampleIndex];
+          } else {
+            block = 0;
+          }
+          this.setBlock(startX + j, startY + i, block, keepDirty);
+          this.dirtyNegative[(startY + i) * this.size + startX + j] = false;
+        }
+      } else if (chunk.dirtyPositive[sampleIndex]) {
         this.setBlock(startX + j, startY + i, chunk.blocks[sampleIndex], keepDirty);
         this.dirtyNegative[(startY + i) * this.size + startX + j] = false;
-      // }
+      }
     }
   }
 

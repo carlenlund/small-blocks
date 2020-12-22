@@ -147,7 +147,7 @@ Game.prototype.zoomOut = function() {
     var oneHotY = roundedOffsetY >= Game.CHUNK_SIZE * Game.NUM_SUBDIVISIONS;
     chunk = this.player.chunk.createParent(oneHotX, oneHotY);
   }
-  chunk.sampleChildren();
+  chunk.sampleChildren(false);
 
   this.player.chunk = chunk;
 
@@ -179,8 +179,7 @@ Game.prototype.zoomIn = function() {
   if (!chunk) {
     chunk = this.player.chunk.createChild(childIndex);
   }
-  console.log('sample parent');
-  chunk.sampleParent();
+  chunk.sampleParent(false);
 
   this.player.chunk = chunk;
 
@@ -339,7 +338,7 @@ Game.prototype.updateLoop = function() {
 
 Game.prototype.update = function() {
   // TODO
-  // this.checkPlayerOutOfBounds();
+  this.checkPlayerOutOfBounds();
   // this.enforceRenderDistance(this.player.chunk, this.renderDistance);
 };
 
@@ -397,22 +396,24 @@ Game.prototype.renderChunk = function(chunk, x, y,
   }
 
   --depth;
-  // for (var neighborY = -1; neighborY <= 1; ++neighborY) {
-  //   for (var neighborX = -1; neighborX <= 1; ++neighborX) {
-  //     if (neighborX === 0 && neighborY === 0) {
-  //       continue;
-  //     }
-  //     var neighbor = chunk.lookUpNeighbor(neighborX, neighborY);
-  //     if (neighbor) {
-  //       this.renderChunk(neighbor,
-  //                        x + neighborX * scale,
-  //                        y + neighborY * scale,
-  //                        depth,
-  //                        scale,
-  //                        chunk);
-  //     }
-  //   }
-  // }
+  // FIXME: Diagonal chunks are rendered twice (overlapping) with
+  // two nondiagonal moves going to the same chunk.
+  for (var neighborY = -1; neighborY <= 1; ++neighborY) {
+    for (var neighborX = -1; neighborX <= 1; ++neighborX) {
+      if (neighborX === 0 && neighborY === 0) {
+        continue;
+      }
+      var neighbor = chunk.lookUpNeighbor(neighborX, neighborY);
+      if (neighbor) {
+        this.renderChunk(neighbor,
+                         x + neighborX * scale,
+                         y + neighborY * scale,
+                         depth,
+                         scale,
+                         chunk);
+      }
+    }
+  }
 };
 
 Game.prototype.renderPlayer = function(player, scale) {
