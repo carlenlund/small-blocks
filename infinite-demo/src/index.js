@@ -1,4 +1,4 @@
-var Game = require('./game2');
+var Game = require('./game3');
 
 var canvas = document.querySelector('#canvas');
 resizeCanvas();
